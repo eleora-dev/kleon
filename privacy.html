@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Eleòra Kleon — Privacy Policy</title>
+
+  <style>
+    :root {
+      --orange: #ffa726;
+      --text: #1a1a1a;
+      --muted: #666;
+      --border: #e8e8e8;
+      --bg: #fff;
+      --card: #fafafa;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --text: #eee;
+        --muted: #999;
+        --border: #333;
+        --bg: #1e1e1e;
+        --card: #252525;
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: Georgia, "Times New Roman", serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      padding: 0 16px 64px;
+    }
+
+    header {
+      max-width: 680px;
+      margin: 0 auto 40px;
+      padding: 48px 0 32px;
+      border-bottom: 2px solid var(--orange);
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+
+    .brand-logo {
+      height: 42px;
+      display: block;
+    }
+
+    .brand-product {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 30px;
+      font-weight: 700;
+      color: var(--muted);
+      letter-spacing: 2px;
+      transform: translateY(3px);
+      margin-left: 8px;
+    }
+
+    .meta {
+      font-family: system-ui, sans-serif;
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    main {
+      max-width: 680px;
+      margin: 0 auto;
+    }
+
+    section {
+      margin-bottom: 40px;
+    }
+
+    .lang-tag {
+      display: inline-block;
+      font-family: system-ui, sans-serif;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--orange);
+      border: 1px solid var(--orange);
+      border-radius: 4px;
+      padding: 2px 7px;
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      font-size: 20px;
+      font-weight: normal;
+      margin-bottom: 12px;
+    }
+
+    p {
+      font-size: 16px;
+      margin-bottom: 12px;
+    }
+
+    a {
+      color: var(--orange);
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--orange);
+      border-radius: 6px;
+      padding: 16px 20px;
+      margin-top: 16px;
+      font-family: system-ui, sans-serif;
+      font-size: 14px;
+    }
+
+    .card ul {
+      list-style: none;
+    }
+
+    .card ul li {
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      gap: 10px;
+    }
+
+    .card ul li:last-child {
+      border-bottom: none;
+    }
+
+    .card ul li::before {
+      content: "→";
+      color: var(--orange);
+      flex-shrink: 0;
+    }
+
+    .permission-name {
+      font-weight: 600;
+      min-width: 160px;
+      flex-shrink: 0;
+    }
+
+    .permission-reason {
+      color: var(--muted);
+    }
+
+    .source-note {
+      margin-top: 16px;
+    }
+
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 48px 0;
+    }
+
+    footer {
+      max-width: 680px;
+      margin: 0 auto;
+      font-family: system-ui, sans-serif;
+      font-size: 12px;
+      color: var(--muted);
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+
+<body>
+
+<header>
+  <div class="logo">
+    <img src="eleora-logo-inline.png" alt="Eleòra" class="brand-logo">
+    <span class="brand-product">Kleon</span>
+  </div>
+
+  <p class="meta">Privacy Policy · Last updated: 2026</p>
+</header>
+
+<main>
+
+  <!-- ENGLISH -->
+  <section>
+    <div class="lang-tag">English</div>
+    <h2>Privacy Policy</h2>
+
+    <p>Eleòra Kleon is a system maintenance utility for Fedora Linux, optimized for KDE Plasma. It updates packages, removes obsolete kernels, and cleans logs, cache, temporary files and browser data.</p>
+
+    <p><strong>This application does not collect, store, transmit, or share any personal data.</strong> All operations are performed locally on your machine. No data ever leaves your device.</p>
+
+    <p>Eleòra Kleon requires elevated privileges (via pkexec) solely to perform the following system-level operations:</p>
+
+    <div class="card">
+      <ul>
+        <li>
+          <span class="permission-name">DNF / Flatpak</span>
+          <span class="permission-reason">Update packages and remove unused ones.</span>
+        </li>
+        <li>
+          <span class="permission-name">Kernel removal</span>
+          <span class="permission-reason">Remove obsolete kernel versions beyond the latest two.</span>
+        </li>
+        <li>
+          <span class="permission-name">systemd journal</span>
+          <span class="permission-reason">Reduce journal size to a configured limit.</span>
+        </li>
+        <li>
+          <span class="permission-name">Log files</span>
+          <span class="permission-reason">Delete rotated and compressed logs in /var/log.</span>
+        </li>
+        <li>
+          <span class="permission-name">Core dumps</span>
+          <span class="permission-reason">Remove crash dump files in /var/lib/systemd/coredump.</span>
+        </li>
+        <li>
+          <span class="permission-name">PackageKit cache</span>
+          <span class="permission-reason">Clear the PackageKit package cache.</span>
+        </li>
+        <li>
+          <span class="permission-name">Temporary files</span>
+          <span class="permission-reason">Remove stale files from /tmp and /var/tmp.</span>
+        </li>
+      </ul>
+    </div>
+
+    <p class="source-note">User-level operations (cache, browser data, Bash history, recent documents) run without elevated privileges and only affect the current user's home directory.</p>
+
+    <p>No analytics, no tracking, no network requests. The source code is publicly available on <a href="https://github.com/eleora-dev/kclean" target="_blank">GitHub</a>.</p>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- ITALIANO -->
+  <section>
+    <div class="lang-tag">Italiano</div>
+    <h2>Informativa sulla Privacy</h2>
+
+    <p>Eleòra Kleon è un'utility di manutenzione del sistema per Fedora Linux, ottimizzata per KDE Plasma. Aggiorna i pacchetti, rimuove kernel obsoleti e pulisce log, cache, file temporanei e dati browser.</p>
+
+    <p><strong>Questa applicazione non raccoglie, salva, trasmette o condivide alcun dato personale.</strong> Tutte le operazioni vengono eseguite localmente sul dispositivo. Nessun dato lascia il computer dell'utente.</p>
+
+    <p>Eleòra Kleon richiede privilegi elevati (tramite pkexec) esclusivamente per eseguire le seguenti operazioni di sistema:</p>
+
+    <div class="card">
+      <ul>
+        <li>
+          <span class="permission-name">DNF / Flatpak</span>
+          <span class="permission-reason">Aggiornare i pacchetti e rimuovere quelli inutilizzati.</span>
+        </li>
+        <li>
+          <span class="permission-name">Rimozione kernel</span>
+          <span class="permission-reason">Rimuovere le versioni kernel obsolete oltre le ultime due.</span>
+        </li>
+        <li>
+          <span class="permission-name">Journal systemd</span>
+          <span class="permission-reason">Ridurre la dimensione del journal entro un limite configurato.</span>
+        </li>
+        <li>
+          <span class="permission-name">File di log</span>
+          <span class="permission-reason">Eliminare i log ruotati e compressi in /var/log.</span>
+        </li>
+        <li>
+          <span class="permission-name">Core dump</span>
+          <span class="permission-reason">Rimuovere i file di crash in /var/lib/systemd/coredump.</span>
+        </li>
+        <li>
+          <span class="permission-name">Cache PackageKit</span>
+          <span class="permission-reason">Svuotare la cache dei pacchetti di PackageKit.</span>
+        </li>
+        <li>
+          <span class="permission-name">File temporanei</span>
+          <span class="permission-reason">Rimuovere i file obsoleti da /tmp e /var/tmp.</span>
+        </li>
+      </ul>
+    </div>
+
+    <p class="source-note">Le operazioni utente (cache, dati browser, cronologia Bash, documenti recenti) vengono eseguite senza privilegi elevati e riguardano esclusivamente la home directory dell'utente corrente.</p>
+
+    <p>Nessuna analisi, nessun tracciamento, nessuna richiesta di rete. Il codice sorgente è pubblicamente disponibile su <a href="https://github.com/eleora-dev/kclean" target="_blank">GitHub</a>.</p>
+  </section>
+
+</main>
+
+<footer>
+  <p>Eleòra Kleon · Gerardo Perilli ·
+    <a href="mailto:gerardo.perilli@gmail.com">email</a> ·
+    <a href="https://github.com/eleora-dev/kclean" target="_blank">GitHub</a>
+  </p>
+</footer>
+
+</body>
+</html>

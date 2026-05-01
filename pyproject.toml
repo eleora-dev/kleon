@@ -1,0 +1,7 @@
+[project]
+name = "Eleòra Kleon"
+version = "1.0"
+authors = [{name = "Gerardo Perilli"}]
+
+[tool.pyside6-project]
+files = ["kleon.py", "kleon.ui", "resources_rc.py"]
