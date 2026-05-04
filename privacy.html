@@ -41,9 +41,10 @@
 
     header {
       max-width: 680px;
-      margin: 0 auto 40px;
+      margin: 0 auto;
       padding: 48px 0 32px;
       border-bottom: 2px solid var(--orange);
+      margin-bottom: 40px;
     }
 
     .logo {
@@ -120,6 +121,7 @@
       border-radius: 6px;
       padding: 16px 20px;
       margin-top: 16px;
+      margin-bottom: 16px;
       font-family: system-ui, sans-serif;
       font-size: 14px;
     }
@@ -185,7 +187,7 @@
     <span class="brand-product">Kleon</span>
   </div>
 
-  <p class="meta">Privacy Policy · Last updated: 2026</p>
+  <p class="meta">Privacy Policy · Last updated: May 2026</p>
 </header>
 
 <main>
@@ -205,7 +207,7 @@
       <ul>
         <li>
           <span class="permission-name">DNF / Flatpak</span>
-          <span class="permission-reason">Update packages and remove unused ones.</span>
+          <span class="permission-reason">Update packages, remove unused ones, and clean package caches (including libdnf5 and system-upgrade data).</span>
         </li>
         <li>
           <span class="permission-name">Kernel removal</span>
@@ -224,24 +226,57 @@
           <span class="permission-reason">Remove crash dump files in /var/lib/systemd/coredump.</span>
         </li>
         <li>
+          <span class="permission-name">Crash reports (system)</span>
+          <span class="permission-reason">Remove ABRT system crash reports in /var/spool/abrt and /var/tmp/abrt.</span>
+        </li>
+        <li>
           <span class="permission-name">PackageKit cache</span>
           <span class="permission-reason">Clear the PackageKit package cache.</span>
         </li>
         <li>
           <span class="permission-name">Temporary files</span>
-          <span class="permission-reason">Remove stale files from /tmp and /var/tmp.</span>
+          <span class="permission-reason">Remove stale files from /tmp (older than 1 day) and /var/tmp (older than 7 days).</span>
+        </li>
+        <li>
+          <span class="permission-name">Bash history (root)</span>
+          <span class="permission-reason">Clear the root shell history file.</span>
         </li>
       </ul>
     </div>
 
-    <p class="source-note">User-level operations (cache, browser data, Bash history, recent documents) run without elevated privileges and only affect the current user's home directory.</p>
+    <p class="source-note">User-level operations run without elevated privileges and only affect the current user's home directory:</p>
 
-    <p>No analytics, no tracking, no network requests. The source code is publicly available on <a href="https://github.com/eleora-dev/kclean" target="_blank">GitHub</a>.</p>
+    <div class="card">
+      <ul>
+        <li>
+          <span class="permission-name">User cache</span>
+          <span class="permission-reason">Clean ~/.cache (KDE essentials are preserved) and __pycache__ folders in the home directory.</span>
+        </li>
+        <li>
+          <span class="permission-name">Bash history (user)</span>
+          <span class="permission-reason">Clear the user shell history file.</span>
+        </li>
+        <li>
+          <span class="permission-name">Recent documents</span>
+          <span class="permission-reason">Remove KDE recent document entries and the GTK recently-used.xbel file.</span>
+        </li>
+        <li>
+          <span class="permission-name">Crash reports (user)</span>
+          <span class="permission-reason">Remove ABRT user crash reports in ~/.local/share/abrt.</span>
+        </li>
+        <li>
+          <span class="permission-name">Browser data</span>
+          <span class="permission-reason">Clear cache, history and sessions for Brave, Chrome and Firefox. Saved passwords are only removed if the user explicitly enables the dedicated option.</span>
+        </li>
+      </ul>
+    </div>
+
+    <p>No analytics, no tracking, no network requests. The source code is publicly available on <a href="https://github.com/eleora-dev/kleon" target="_blank" rel="noopener noreferrer">GitHub</a>.</p>
   </section>
 
   <hr class="divider" />
 
-  <!-- ITALIANO -->
+  <!-- ITALIAN -->
   <section>
     <div class="lang-tag">Italiano</div>
     <h2>Informativa sulla Privacy</h2>
@@ -256,7 +291,7 @@
       <ul>
         <li>
           <span class="permission-name">DNF / Flatpak</span>
-          <span class="permission-reason">Aggiornare i pacchetti e rimuovere quelli inutilizzati.</span>
+          <span class="permission-reason">Aggiornare i pacchetti, rimuovere quelli inutilizzati e pulire le cache (incluse libdnf5 e i dati di system-upgrade).</span>
         </li>
         <li>
           <span class="permission-name">Rimozione kernel</span>
@@ -275,19 +310,52 @@
           <span class="permission-reason">Rimuovere i file di crash in /var/lib/systemd/coredump.</span>
         </li>
         <li>
+          <span class="permission-name">Crash report (sistema)</span>
+          <span class="permission-reason">Rimuovere i report di crash ABRT di sistema in /var/spool/abrt e /var/tmp/abrt.</span>
+        </li>
+        <li>
           <span class="permission-name">Cache PackageKit</span>
           <span class="permission-reason">Svuotare la cache dei pacchetti di PackageKit.</span>
         </li>
         <li>
           <span class="permission-name">File temporanei</span>
-          <span class="permission-reason">Rimuovere i file obsoleti da /tmp e /var/tmp.</span>
+          <span class="permission-reason">Rimuovere i file obsoleti da /tmp (più vecchi di 1 giorno) e /var/tmp (più vecchi di 7 giorni).</span>
+        </li>
+        <li>
+          <span class="permission-name">Cronologia Bash (root)</span>
+          <span class="permission-reason">Cancellare il file di cronologia della shell root.</span>
         </li>
       </ul>
     </div>
 
-    <p class="source-note">Le operazioni utente (cache, dati browser, cronologia Bash, documenti recenti) vengono eseguite senza privilegi elevati e riguardano esclusivamente la home directory dell'utente corrente.</p>
+    <p class="source-note">Le operazioni utente vengono eseguite senza privilegi elevati e riguardano esclusivamente la home directory dell'utente corrente:</p>
 
-    <p>Nessuna analisi, nessun tracciamento, nessuna richiesta di rete. Il codice sorgente è pubblicamente disponibile su <a href="https://github.com/eleora-dev/kclean" target="_blank">GitHub</a>.</p>
+    <div class="card">
+      <ul>
+        <li>
+          <span class="permission-name">Cache utente</span>
+          <span class="permission-reason">Pulire ~/.cache (i file essenziali di KDE vengono preservati) e le cartelle __pycache__ nella home.</span>
+        </li>
+        <li>
+          <span class="permission-name">Cronologia Bash (utente)</span>
+          <span class="permission-reason">Cancellare il file di cronologia della shell utente.</span>
+        </li>
+        <li>
+          <span class="permission-name">Documenti recenti</span>
+          <span class="permission-reason">Rimuovere i documenti recenti di KDE e il file recently-used.xbel di GTK.</span>
+        </li>
+        <li>
+          <span class="permission-name">Crash report (utente)</span>
+          <span class="permission-reason">Rimuovere i report di crash ABRT utente in ~/.local/share/abrt.</span>
+        </li>
+        <li>
+          <span class="permission-name">Dati browser</span>
+          <span class="permission-reason">Pulire cache, cronologia e sessioni di Brave, Chrome e Firefox. Le password salvate vengono rimosse solo se l'utente abilita esplicitamente l'opzione dedicata.</span>
+        </li>
+      </ul>
+    </div>
+
+    <p>Nessuna analisi, nessun tracciamento, nessuna richiesta di rete. Il codice sorgente è pubblicamente disponibile su <a href="https://github.com/eleora-dev/kleon" target="_blank" rel="noopener noreferrer">GitHub</a>.</p>
   </section>
 
 </main>
@@ -295,7 +363,7 @@
 <footer>
   <p>Eleòra Kleon · Gerardo Perilli ·
     <a href="mailto:gerardo.perilli@gmail.com">email</a> ·
-    <a href="https://github.com/eleora-dev/kclean" target="_blank">GitHub</a>
+    <a href="https://github.com/eleora-dev/kleon" target="_blank" rel="noopener noreferrer">GitHub</a>
   </p>
 </footer>
 
