@@ -9,6 +9,12 @@ A system maintenance utility for Fedora Linux, optimized for KDE Plasma.
 
 ---
 
+## Screenshot
+
+![Main window](assets/screenshot.png)
+
+---
+
 ## Features
 
 * **DNF** — upgrade packages, autoremove unused ones, clean cache, libdnf5 cache and system-upgrade data

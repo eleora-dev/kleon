@@ -28,7 +28,7 @@ APP_SOURCE  = "https://github.com/eleora-dev/kleon"
 APP_ISSUES  = "https://github.com/eleora-dev/kleon/issues"
 
 
-# ── Internationalization ──────────────────────────────────────────────────────
+# ── Localisation ──────────────────────────────────────────────────────────────
 
 _STRINGS = {
     "it": {
