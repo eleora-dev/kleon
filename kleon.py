@@ -21,9 +21,9 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QApplication, QFileDialog, QMessageBox, QMainWindow,
     QToolBar, QWidget, QSizePolicy, QStackedWidget,
-    QHBoxLayout, QStatusBar, QLabel
+    QHBoxLayout, QVBoxLayout, QStatusBar, QLabel,
+    QGroupBox, QCheckBox, QPlainTextEdit, QProgressBar
 )
-from ui_kleon import Ui_Kleon
 
 APP_TITLE   = "Kleon"
 APP_VERSION = "1.0"
@@ -126,6 +126,9 @@ _STRINGS = {
         "browser_passwords":    "password salvate",
         "grp_actions":          "Azioni",
         "grp_log":              "Log",
+        "ui_sec_system":        "Sistema",
+        "ui_sec_user":          "Utente",
+        "ui_sec_browser":       "Browser",
         "btn_run":              "Avvia Manutenzione",
         "btn_stop_tip":         "Interrompi  (Esc)",
         "btn_export_tip":       "Esporta log  (Ctrl+S)",
@@ -261,6 +264,9 @@ _STRINGS = {
         "browser_passwords":    "saved passwords",
         "grp_actions":          "Actions",
         "grp_log":              "Log",
+        "ui_sec_system":        "System",
+        "ui_sec_user":          "User",
+        "ui_sec_browser":       "Browser",
         "btn_run":              "Run Maintenance",
         "btn_stop_tip":         "Stop  (Esc)",
         "btn_export_tip":       "Export log  (Ctrl+S)",
@@ -1127,7 +1133,7 @@ class LogHighlighter(QSyntaxHighlighter):
 
 # ── Main window ───────────────────────────────────────────────────────────────
 
-class MainWindow(QMainWindow, Ui_Kleon):
+class MainWindow(QMainWindow):
 
     _SETTINGS_GEOMETRY = "mainWindow/geometry"
     _SETTINGS_STATE    = "mainWindow/windowState"
@@ -1138,8 +1144,7 @@ class MainWindow(QMainWindow, Ui_Kleon):
         # Real user info computed once at startup
         self._uid, self._real_user, self._real_home = real_user_info()
 
-        self.setupUi(self)
-
+        self._build_main_layout()
         self._setup_ui()
         self.highlighter = LogHighlighter(self.logText.document())
         self._show_welcome()
@@ -1164,6 +1169,290 @@ class MainWindow(QMainWindow, Ui_Kleon):
         super().closeEvent(event)
 
     # ── UI setup helpers ──────────────────────────────────────────────────────
+
+    def _theme(self) -> dict[str, str]:
+        """Return a small CharM-inspired palette adapted to the active KDE theme."""
+        palette = self.palette()
+        is_dark = palette.color(QPalette.ColorRole.Window).lightness() < 128
+        if is_dark:
+            return {
+                "bg": "#1e1e1e",
+                "panel_bg": "#252525",
+                "panel_alt": "#2b2118",
+                "panel_border": "#383838",
+                "text": "#eeeeee",
+                "muted": "#b8b8b8",
+                "disabled": "#777777",
+                "accent": "#ffa726",
+                "accent_soft": "#332514",
+                "accent_mid": "#4a3217",
+                "accent_text": "#ffffff",
+                "log_bg": "#202020",
+                "log_text": "#f2f2f2",
+                "toolbar_bg": "#241f18",
+                "toolbar_border": "#3a3024",
+                "status_bg": "#252525",
+                "positive": "#1cdc9a",
+                "danger": "#da4453",
+            }
+        return {
+            "bg": "#ffffff",
+            "panel_bg": "#fafafa",
+            "panel_alt": "#fff3e0",
+            "panel_border": "#e8e8e8",
+            "text": "#222222",
+            "muted": "#666666",
+            "disabled": "#9a9a9a",
+            "accent": "#ffa726",
+            "accent_soft": "#fff3e0",
+            "accent_mid": "#ffe0b2",
+            "accent_text": "#ffffff",
+            "log_bg": "#f5f5f5",
+            "log_text": "#1a1a2e",
+            "toolbar_bg": "#fff3e0",
+            "toolbar_border": "#eadfce",
+            "status_bg": "#ffffff",
+            "positive": "#1cdc9a",
+            "danger": "#da4453",
+        }
+
+    def _apply_app_styles(self):
+        """Apply the CharM-inspired visual layer while keeping a KDE-native window."""
+        t = self._theme()
+        self.setStyleSheet(f"""
+            QMainWindow {{
+                background: {t['bg']};
+                color: {t['text']};
+            }}
+
+            QWidget#centralwidget {{
+                background: {t['bg']};
+                color: {t['text']};
+            }}
+
+            QGroupBox {{
+                background: {t['panel_bg']};
+                color: {t['text']};
+                border: 1px solid {t['panel_border']};
+                border-radius: 13px;
+                margin-top: 15px;
+                padding-top: 17px;
+                font-weight: 700;
+            }}
+
+            QGroupBox::title {{
+                subcontrol-origin: margin;
+                subcontrol-position: top center;
+                padding: 0 10px;
+                color: {t['text']};
+                background: {t['bg']};
+            }}
+
+            QLabel#sectionLabel {{
+                color: {t['accent']};
+                font-size: 11px;
+                font-weight: 800;
+                letter-spacing: 0.8px;
+                text-transform: uppercase;
+                padding: 7px 0 2px 0;
+            }}
+
+            QCheckBox {{
+                color: {t['text']};
+                spacing: 8px;
+                padding: 4px 7px;
+                border-radius: 7px;
+            }}
+
+            QCheckBox:hover {{
+                background: {t['accent_soft']};
+            }}
+
+            QCheckBox:disabled {{
+                color: {t['disabled']};
+            }}
+
+            QWidget#passwordRow QCheckBox {{
+                color: {t['muted']};
+            }}
+
+            QToolBar#mainToolBar {{
+                background: {t['toolbar_bg']};
+                border: none;
+                border-bottom: 1px solid {t['toolbar_border']};
+                padding: 6px 8px;
+                spacing: 5px;
+            }}
+
+            QToolBar#mainToolBar QToolButton {{
+                color: {t['text']};
+                background: transparent;
+                border: none;
+                border-radius: 8px;
+                padding: 6px 10px;
+            }}
+
+            QToolBar#mainToolBar QToolButton:hover {{
+                background: {t['accent_soft']};
+            }}
+
+            QToolBar#mainToolBar QToolButton:pressed {{
+                background: {t['accent']};
+                color: {t['accent_text']};
+            }}
+
+            QToolBar#mainToolBar QToolButton:disabled {{
+                color: {t['disabled']};
+                background: transparent;
+            }}
+
+            QProgressBar {{
+                min-height: 17px;
+                max-height: 17px;
+                border: 1px solid {t['panel_border']};
+                border-radius: 8px;
+                background: {t['panel_bg']};
+                color: {t['text']};
+                text-align: center;
+                font-size: 10px;
+                font-weight: 700;
+            }}
+
+            QProgressBar::chunk {{
+                border-radius: 7px;
+                background: {t['accent']};
+            }}
+
+            QStatusBar {{
+                background: {t['status_bg']};
+                color: {t['muted']};
+                border-top: 1px solid {t['panel_border']};
+            }}
+
+            QStatusBar::item {{
+                border: none;
+            }}
+        """)
+
+    def _build_main_layout(self):
+        """
+        Build the main window programmatically, without Qt Designer/Creator.
+        The widget names intentionally match the old .ui-generated attributes
+        so the application logic can stay almost unchanged.
+        """
+        self.setObjectName("Kleon")
+        self.resize(980, 660)
+        self.setMinimumSize(820, 560)
+
+        self.centralwidget = QWidget(self)
+        self.centralwidget.setObjectName("centralwidget")
+        self.setCentralWidget(self.centralwidget)
+
+        root_layout = QHBoxLayout(self.centralwidget)
+        root_layout.setContentsMargins(24, 24, 24, 20)
+        root_layout.setSpacing(22)
+
+        # ── Left panel: maintenance operations ────────────────────────────
+        self.opsBox = QGroupBox(self.centralwidget)
+        self.opsBox.setObjectName("opsBox")
+        self.opsBox.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        self.opsBox.setMinimumWidth(235)
+        self.opsBox.setMaximumWidth(285)
+        self.opsBox.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Expanding)
+
+        title_font = QFont()
+        title_font.setPointSize(12)
+        title_font.setBold(True)
+        self.opsBox.setFont(title_font)
+
+        ops_layout = QVBoxLayout(self.opsBox)
+        ops_layout.setContentsMargins(22, 28, 22, 22)
+        ops_layout.setSpacing(7)
+
+        cb_font = QFont()
+        cb_font.setPointSize(10)
+
+        def make_check(name: str, text: str, checked: bool = True, italic: bool = False) -> QCheckBox:
+            cb = QCheckBox(text, self.opsBox)
+            cb.setObjectName(name)
+            f = QFont(cb_font)
+            f.setItalic(italic)
+            cb.setFont(f)
+            cb.setChecked(checked)
+            cb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            return cb
+
+        def add_section(title: str):
+            label = QLabel(title, self.opsBox)
+            label.setObjectName("sectionLabel")
+            label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+            ops_layout.addSpacing(8)
+            ops_layout.addWidget(label)
+
+        self.dnfOpt        = make_check("dnfOpt",        "DNF")
+        self.flatpakOpt    = make_check("flatpakOpt",    "Flatpak")
+        self.kernelOpt     = make_check("kernelOpt",     "Kernel Obsoleti")
+        self.systemdOpt    = make_check("systemdOpt",    "Journal systemd")
+        self.logsOpt       = make_check("logsOpt",       "Log Obsoleti")
+        self.coredumpOpt   = make_check("coredumpOpt",   "Core Dump")
+        self.packagekitOpt = make_check("packagekitOpt", "PackageKit")
+        self.tmpOpt        = make_check("tmpOpt",        "File Temporanei")
+        self.abrtOpt       = make_check("abrtOpt",       "Crash Report")
+        self.bashOpt       = make_check("bashOpt",       "Bash")
+        self.cacheOpt      = make_check("cacheOpt",      "Cache Utente")
+        self.recentOpt     = make_check("recentOpt",     "Documenti Recenti")
+        self.browserOpt    = make_check("browserOpt",    "Pulizia Browser")
+        self.passwordOpt   = make_check("passwordOpt",   "Elimina Password", checked=False, italic=True)
+
+        add_section(T["ui_sec_system"])
+        for cb in [
+            self.dnfOpt, self.flatpakOpt, self.kernelOpt, self.systemdOpt,
+            self.logsOpt, self.coredumpOpt, self.packagekitOpt, self.tmpOpt,
+        ]:
+            ops_layout.addWidget(cb)
+
+        add_section(T["ui_sec_user"])
+        for cb in [self.abrtOpt, self.bashOpt, self.cacheOpt, self.recentOpt]:
+            ops_layout.addWidget(cb)
+
+        add_section(T["ui_sec_browser"])
+        ops_layout.addWidget(self.browserOpt)
+
+        password_row = QWidget(self.opsBox)
+        password_row.setObjectName("passwordRow")
+        password_layout = QHBoxLayout(password_row)
+        password_layout.setContentsMargins(24, 0, 0, 0)
+        password_layout.setSpacing(0)
+        password_layout.addWidget(self.passwordOpt)
+        ops_layout.addWidget(password_row)
+        ops_layout.addStretch(1)
+
+        # ── Right panel: log output ───────────────────────────────────────
+        self.logBox = QGroupBox(self.centralwidget)
+        self.logBox.setObjectName("logBox")
+        self.logBox.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        self.logBox.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.logBox.setFont(title_font)
+
+        log_layout = QVBoxLayout(self.logBox)
+        log_layout.setContentsMargins(22, 30, 22, 18)
+        log_layout.setSpacing(0)
+
+        self.logText = QPlainTextEdit(self.logBox)
+        self.logText.setObjectName("logText")
+        self.logText.setReadOnly(True)
+        self.logText.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        self.logText.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        log_layout.addWidget(self.logText)
+
+        # Created here for compatibility with the old .ui version; the toolbar
+        # re-parents it into its center area during _build_toolbar().
+        self.progressBar = QProgressBar(self.logBox)
+        self.progressBar.setObjectName("progressBar")
+        self.progressBar.hide()
+
+        root_layout.addWidget(self.opsBox)
+        root_layout.addWidget(self.logBox, 1)
 
     def _hide_legacy_buttons(self):
         """Hide legacy buttons defined in the .ui file (replaced by the toolbar)."""
@@ -1272,44 +1561,32 @@ class MainWindow(QMainWindow, Ui_Kleon):
 
     def _setup_log_widget(self):
         """
-        Style the log area using the active KDE palette.
+        Style the log area using the active KDE palette plus the Kleon/CharM accent.
         Works correctly with both light and dark themes.
         """
+        t = self._theme()
         palette = self.palette()
-        base    = palette.color(QPalette.ColorRole.Base)
-        is_dark = base.lightness() < 128
-
-        if is_dark:
-            # Dark theme: use Breeze Dark palette values
-            bg     = base.name()
-            fg     = palette.color(QPalette.ColorRole.Text).name()
-            sel_bg = palette.color(QPalette.ColorRole.Highlight).name()
-            sel_fg = palette.color(QPalette.ColorRole.HighlightedText).name()
-        else:
-            # Light theme: console look with slightly grey background
-            bg     = "#f5f5f5"
-            fg     = "#1a1a2e"
-            sel_bg = palette.color(QPalette.ColorRole.Highlight).name()
-            sel_fg = palette.color(QPalette.ColorRole.HighlightedText).name()
+        sel_bg = palette.color(QPalette.ColorRole.Highlight).name()
+        sel_fg = palette.color(QPalette.ColorRole.HighlightedText).name()
 
         font = self._pick_monospace_font()
         self.logText.setFont(font)
         self.logText.setStyleSheet(f"""
-            QPlainTextEdit {{
-                background-color: {bg};
-                color: {fg};
+            QPlainTextEdit#logText {{
+                background-color: {t['log_bg']};
+                color: {t['log_text']};
                 selection-background-color: {sel_bg};
                 selection-color: {sel_fg};
-                border: none;
-                padding: 6px;
+                border: 1px solid {t['panel_border']};
+                border-radius: 10px;
+                padding: 10px 12px;
             }}
         """)
 
     def _setup_ui(self):
         """Initialize all widgets of the main window."""
-        self.setWindowTitle(APP_TITLE)
+        self.setWindowTitle(f"{APP_STUDIO} {APP_TITLE}")
         self.setWindowIcon(QIcon(":/kleon"))
-        self.setFixedSize(self.size())
 
         self.opsBox.setTitle(T["grp_actions"])
         self.logBox.setTitle(T["grp_log"])
@@ -1334,8 +1611,6 @@ class MainWindow(QMainWindow, Ui_Kleon):
         ]:
             cb.toggled.connect(self._update_run_enabled)
 
-        self._setup_log_widget()
-
         sb = QStatusBar(self)
         sb.setSizeGripEnabled(True)
         self.setStatusBar(sb)
@@ -1344,6 +1619,8 @@ class MainWindow(QMainWindow, Ui_Kleon):
 
         self._hide_legacy_buttons()
         self._build_toolbar()
+        self._apply_app_styles()
+        self._setup_log_widget()
         self._update_run_enabled()
 
         self.actionStop.setEnabled(False)
@@ -1428,12 +1705,12 @@ class MainWindow(QMainWindow, Ui_Kleon):
             cb.setEnabled(not running)
 
         if running:
-            self.setWindowTitle(f"{APP_TITLE} — {T['status_running']}")
+            self.setWindowTitle(f"{APP_STUDIO} {APP_TITLE} — {T['status_running']}")
             self._set_status(T["status_running"])
         else:
             # Restore the browserOpt → passwordOpt dependency
             self.passwordOpt.setEnabled(self.browserOpt.isChecked())
-            self.setWindowTitle(APP_TITLE)
+            self.setWindowTitle(f"{APP_STUDIO} {APP_TITLE}")
             self._set_status(T["status_ready"])
 
     def on_info(self):
