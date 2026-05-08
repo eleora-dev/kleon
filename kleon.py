@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-import locale, os, pwd, shutil, subprocess, threading, shlex, platform, socket, random, resources_rc
+"""
+ *  Eleòra Kleon
+ *  System maintenance utility for Fedora Linux/KDE.
+ *
+ *  https://github.com/eleora-dev/kleon
+ *  License: MIT
+"""
+
+import locale, os, pwd, shutil, subprocess, threading, shlex, platform, socket, random, resources
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
@@ -17,7 +25,6 @@ from PySide6.QtWidgets import (
 )
 from ui_kleon import Ui_Kleon
 
-_ = resources_rc   # Hack to suppress Qt linter warning
 APP_TITLE   = "Kleon"
 APP_VERSION = "1.0"
 APP_YEAR    = "2026"
