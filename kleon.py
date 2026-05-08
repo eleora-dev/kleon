@@ -7,7 +7,12 @@
  *  License: MIT
 """
 
-import locale, os, pwd, shutil, subprocess, threading, shlex, platform, socket, random, resources
+import locale, os, pwd, shutil, subprocess, threading, shlex, platform, socket, random, signal, selectors, tempfile
+
+try:
+    import resources
+except ImportError:
+    resources = None
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
@@ -371,6 +376,81 @@ def df_avail_size_root() -> Tuple[int, int]:
     return int(avail), int(size)
 
 
+def _terminate_process_tree(p: subprocess.Popen) -> None:
+    """Terminate a subprocess and its process group when possible."""
+    try:
+        os.killpg(p.pid, signal.SIGTERM)
+    except Exception:
+        try:
+            p.terminate()
+        except Exception:
+            pass
+
+    try:
+        p.wait(timeout=3)
+        return
+    except Exception:
+        pass
+
+    try:
+        os.killpg(p.pid, signal.SIGKILL)
+    except Exception:
+        try:
+            p.kill()
+        except Exception:
+            pass
+
+
+def _stream_process_output(p: subprocess.Popen, on_line, cancel_event, *, filter_pkexec_noise: bool = False) -> int:
+    """
+    Stream process output without blocking forever, so cancel requests can be
+    handled even while commands such as dnf/flatpak are quiet.
+    """
+    assert p.stdout is not None
+
+    pkexec_noise = (
+        "Error executing command as another user",
+        "This incident has been reported",
+        "==== AUTHENTICATING FOR",
+        "==== AUTHENTICATION COMPLETE",
+    )
+
+    def emit(line: str):
+        stripped = line.rstrip("\n")
+        if filter_pkexec_noise and any(noise in stripped for noise in pkexec_noise):
+            return
+        on_line(stripped)
+
+    selector = selectors.DefaultSelector()
+    selector.register(p.stdout, selectors.EVENT_READ)
+
+    try:
+        while True:
+            if cancel_event.is_set():
+                _terminate_process_tree(p)
+                on_line(T["interrupted"])
+                return 130
+
+            events = selector.select(timeout=0.1)
+            if events:
+                line = p.stdout.readline()
+                if line:
+                    emit(line)
+                    continue
+
+            if p.poll() is not None:
+                rest = p.stdout.read()
+                if rest:
+                    for line in rest.splitlines():
+                        emit(line)
+                return p.wait()
+    finally:
+        try:
+            selector.close()
+        except Exception:
+            pass
+
+
 def run_cmd(args, on_line, cancel_event) -> int:
     """
     Run a command, sending each output line to on_line.
@@ -384,32 +464,14 @@ def run_cmd(args, on_line, cancel_event) -> int:
             stderr=subprocess.STDOUT,
             text=True,
             bufsize=1,
+            start_new_session=True,
         )
     except FileNotFoundError:
         on_line(f"{T['cmd_not_found']}: {args[0]}")
         return 127
 
     try:
-        assert p.stdout is not None
-        _PKEXEC_NOISE = (
-            "Error executing command as another user",
-            "This incident has been reported",
-            "==== AUTHENTICATING FOR",
-            "==== AUTHENTICATION COMPLETE",
-        )
-        for line in p.stdout:
-            if cancel_event.is_set():
-                try:
-                    p.terminate()
-                except Exception:
-                    pass
-                on_line(T["interrupted"])
-                return 130
-            stripped = line.rstrip("\n")
-            if any(noise in stripped for noise in _PKEXEC_NOISE):
-                continue
-            on_line(stripped)
-        return p.wait()
+        return _stream_process_output(p, on_line, cancel_event, filter_pkexec_noise=True)
     finally:
         try:
             if p.stdout:
@@ -431,6 +493,8 @@ def run_root_block(commands: List[List[str]], on_line, cancel_event) -> int:
                 on_line(T["interrupted"])
                 return 130
             rc = run_cmd(cmd, on_line, cancel_event)
+            if rc == 130:
+                return rc
         return rc
 
     script = ""
@@ -445,23 +509,14 @@ def run_root_block(commands: List[List[str]], on_line, cancel_event) -> int:
             stderr=subprocess.DEVNULL,
             text=True,
             bufsize=1,
+            start_new_session=True,
         )
     except FileNotFoundError:
         on_line(T["pkexec_not_found"])
         return 127
 
     try:
-        assert p.stdout is not None
-        for line in p.stdout:
-            if cancel_event.is_set():
-                try:
-                    p.terminate()
-                except Exception:
-                    pass
-                on_line(T["interrupted"])
-                return 130
-            on_line(line.rstrip("\n"))
-        return p.wait()
+        return _stream_process_output(p, on_line, cancel_event)
     finally:
         try:
             if p.stdout:
@@ -513,6 +568,7 @@ class Worker(QObject):
     def _log(self, s: str):
         self.log.emit(s)
 
+
     def run(self):
         """Thread entry point: execute all enabled operations."""
         self.running.emit(True)
@@ -539,6 +595,13 @@ class Worker(QObject):
 
         completed = [0]
         total_ops = 0
+        done_marker = "__KLEON_OPERATION_DONE__"
+        initial_progress_emitted = [False]
+
+        def emit_initial_progress_once():
+            if not initial_progress_emitted[0]:
+                initial_progress_emitted[0] = True
+                self.progress.emit(random.randint(1, 2))
 
         def is_title_line(s: str) -> bool:
             return s.strip().startswith("━━━━━ ")
@@ -549,9 +612,13 @@ class Worker(QObject):
             self.progress.emit(min(pct, 99))
 
         def log_and_track(line: str):
+            if line.strip() == done_marker:
+                advance()
+                return
+
             self.log.emit(line)
             if is_title_line(line):
-                advance()
+                emit_initial_progress_once()
                 op_name = line.strip().removeprefix("━━━━━ ").strip()
                 self.current_op.emit(op_name)
                 if "DNF" not in op_name:
@@ -563,6 +630,7 @@ class Worker(QObject):
         def add_root_title(title: str):
             root_cmds.append(["echo", ""])
             root_cmds.append(["echo", f"━━━━━ {title}"])
+            root_cmds.append(["sleep", "0.35"])
 
         def add_root_op(enabled: bool, title: str, cmds: List[List[str]]):
             nonlocal total_ops
@@ -571,6 +639,7 @@ class Worker(QObject):
             total_ops += 1
             add_root_title(title)
             root_cmds.extend(cmds)
+            root_cmds.append(["echo", done_marker])
 
         def add_user_op(enabled: bool, title: str, fn: Callable[[], None]):
             nonlocal total_ops
@@ -586,24 +655,25 @@ class Worker(QObject):
             "DNF (root)",
             [
                 ["bash", "-c",
-                 f'dnf upgrade -y > /tmp/_kc_dnf.log 2>&1; rc=$?; '
-                 f'if grep -qi "nothing to do" /tmp/_kc_dnf.log; then '
+                 f'log=$(mktemp /tmp/kleon_dnf.XXXXXX) || exit 1; '
+                 f'trap \'rm -f "$log"\' EXIT; '
+                 f'dnf upgrade -y > "$log" 2>&1; rc=$?; '
+                 f'if grep -qi "nothing to do" "$log"; then '
                  f'  echo "{T["dnf_upgrade_nothing"]}"; '
                  f'elif [ $rc -eq 0 ]; then '
                  f'  echo "{T["dnf_upgrade_ok"]}"; '
                  f'else '
                  f'  echo "{T["dnf_upgrade_err"]} (rc=$rc)"; '
                  f'fi; '
-                 f'rm -f /tmp/_kc_dnf.log; '
-                 f'dnf autoremove -y > /tmp/_kc_dnf.log 2>&1; rc=$?; '
-                 f'if grep -qi "nothing to do" /tmp/_kc_dnf.log; then '
+                 f': > "$log"; '
+                 f'dnf autoremove -y > "$log" 2>&1; rc=$?; '
+                 f'if grep -qi "nothing to do" "$log"; then '
                  f'  echo "{T["dnf_remove_nothing"]}"; '
                  f'elif [ $rc -eq 0 ]; then '
                  f'  echo "{T["dnf_remove_ok"]}"; '
                  f'else '
                  f'  echo "{T["dnf_remove_err"]} (rc=$rc)"; '
                  f'fi; '
-                 f'rm -f /tmp/_kc_dnf.log; '
                  f'dnf clean all > /dev/null 2>&1 '
                  f'  && echo "{T["dnf_clean_ok"]}" '
                  f'  || echo "{T["dnf_clean_err"]}"; '
@@ -622,25 +692,27 @@ class Worker(QObject):
                 root_cmds.append(["echo", T["fp_not_found"]])
             else:
                 root_cmds.append(["bash", "-c",
-                    f'flatpak --system update -y > /tmp/_kc_fp.log 2>&1; rc=$?; '
-                    f'if grep -qiE "nothing to do|already up.to.date" /tmp/_kc_fp.log; then '
+                    f'log=$(mktemp /tmp/kleon_flatpak.XXXXXX) || exit 1; '
+                    f'trap \'rm -f "$log"\' EXIT; '
+                    f'flatpak --system update -y > "$log" 2>&1; rc=$?; '
+                    f'if grep -qiE "nothing to do|already up.to.date" "$log"; then '
                     f'  echo "{T["fp_update_nothing"]}"; '
                     f'elif [ $rc -eq 0 ]; then '
                     f'  echo "{T["fp_update_ok"]}"; '
                     f'else '
                     f'  echo "{T["fp_update_err"]} (rc=$rc)"; '
                     f'fi; '
-                    f'rm -f /tmp/_kc_fp.log; '
-                    f'flatpak --system uninstall --unused -y > /tmp/_kc_fp2.log 2>&1; rc=$?; '
-                    f'if grep -qiE "nothing to do|no unused" /tmp/_kc_fp2.log; then '
+                    f': > "$log"; '
+                    f'flatpak --system uninstall --unused -y > "$log" 2>&1; rc=$?; '
+                    f'if grep -qiE "nothing to do|no unused" "$log"; then '
                     f'  echo "{T["fp_unused_nothing"]}"; '
                     f'elif [ $rc -eq 0 ]; then '
                     f'  echo "{T["fp_unused_ok"]}"; '
                     f'else '
                     f'  echo "{T["fp_unused_err"]} (rc=$rc)"; '
-                    f'fi; '
-                    f'rm -f /tmp/_kc_fp2.log',
+                    f'fi',
                 ])
+            root_cmds.append(["echo", done_marker])
 
         add_root_op(
             self.ops.kernel,
@@ -765,45 +837,51 @@ class Worker(QObject):
             ],
         )
 
-        # SMART data collection (always runs, does not count as a user operation)
-        root_cmds.append(
-            [
-                "bash", "-c",
-                'rm -f /tmp/kleon_smart.txt; '
-                'command -v smartctl >/dev/null 2>&1 || exit 0; '
-                'for dev in /dev/sd? /dev/nvme*n1; do '
-                '  [ -e "$dev" ] || continue; '
-                '  out=$(smartctl -a "$dev" 2>/dev/null || true); '
-                '  model=$(echo "$out" | grep -E "Device Model|Model Number" | head -1 | cut -d: -f2 | xargs); '
-                '  [ -z "$model" ] && model="N/D"; '
-                '  health=$(echo "$out" | grep -E "self-assessment test result" | grep -o "PASSED\\|FAILED" | head -1); '
-                '  [ "$health" = "PASSED" ] && health="OK"; '
-                '  [ "$health" = "FAILED" ] && health="ERRORE"; '
-                '  if [ -z "$health" ]; then '
-                '    warn=$(echo "$out" | grep "Critical Warning" | awk "{print \\$NF}" | head -1); '
-                '    if [ -n "$warn" ]; then '
-                '      [ "$warn" = "0x00" ] && health="OK" || health="ATTENZIONE"; '
-                '    fi; '
-                '  fi; '
-                '  [ -z "$health" ] && health="N/D"; '
-                '  temp=$(echo "$out" | grep -i "Temperature" | head -1 | awk "{print \\$(NF-1)}"); '
-                '  life=$(echo "$out" | grep -i "Percentage Used" | awk "{print \\$NF}" | head -1); '
-                '  uptime=$(echo "$out" | grep -i "Power_On_Hours" | awk "{print \\$NF}" | head -1); '
-                '  { '
-                '    echo "$dev  $model"; '
-                f'    echo "  {T["smart_status"]} *** $health ***"; '
-                '    [ -n "$temp" ] && echo "  Temp.  : ${temp}°C"; '
-                '    if [ -n "$life" ]; then '
-                f'      echo "  {T["smart_usage"]} ${{life}}"; '
-                '    elif [ -n "$uptime" ]; then '
-                '      echo "  Uptime : ${uptime}h"; '
-                '    fi; '
-                '    echo ""; '
-                '  } >> /tmp/kleon_smart.txt; '
-                'done; '
-                'exit 0',
-            ]
-        )
+        # SMART data collection, only when root operations are already requested.
+        smart_dir: Optional[Path] = None
+        smart_file: Optional[Path] = None
+        if root_cmds:
+            smart_dir = Path(tempfile.mkdtemp(prefix="kleon_smart_"))
+            smart_file = smart_dir / "smart.txt"
+            smart_file_q = shlex.quote(str(smart_file))
+            root_cmds.append(
+                [
+                    "bash", "-c",
+                    f': > {smart_file_q}; '
+                    'command -v smartctl >/dev/null 2>&1 || exit 0; '
+                    'for dev in /dev/sd? /dev/nvme*n1; do '
+                    '  [ -e "$dev" ] || continue; '
+                    '  out=$(smartctl -a "$dev" 2>/dev/null || true); '
+                    '  model=$(echo "$out" | grep -E "Device Model|Model Number" | head -1 | cut -d: -f2 | xargs); '
+                    '  [ -z "$model" ] && model="N/D"; '
+                    '  health=$(echo "$out" | grep -E "self-assessment test result" | grep -o "PASSED\\|FAILED" | head -1); '
+                    '  [ "$health" = "PASSED" ] && health="OK"; '
+                    '  [ "$health" = "FAILED" ] && health="ERRORE"; '
+                    '  if [ -z "$health" ]; then '
+                    '    warn=$(echo "$out" | grep "Critical Warning" | awk "{print \\$NF}" | head -1); '
+                    '    if [ -n "$warn" ]; then '
+                    '      [ "$warn" = "0x00" ] && health="OK" || health="ATTENZIONE"; '
+                    '    fi; '
+                    '  fi; '
+                    '  [ -z "$health" ] && health="N/D"; '
+                    '  temp=$(echo "$out" | grep -i "Temperature" | head -1 | awk "{print \\$(NF-1)}"); '
+                    '  life=$(echo "$out" | grep -i "Percentage Used" | awk "{print \\$NF}" | head -1); '
+                    '  uptime=$(echo "$out" | grep -i "Power_On_Hours" | awk "{print \\$NF}" | head -1); '
+                    '  { '
+                    '    echo "$dev  $model"; '
+                    f'    echo "  {T["smart_status"]} *** $health ***"; '
+                    '    [ -n "$temp" ] && echo "  Temp.  : ${temp}°C"; '
+                    '    if [ -n "$life" ]; then '
+                    f'      echo "  {T["smart_usage"]} ${{life}}"; '
+                    '    elif [ -n "$uptime" ]; then '
+                    '      echo "  Uptime : ${uptime}h"; '
+                    '    fi; '
+                    '    echo ""; '
+                    f'  }} >> {smart_file_q}; '
+                    'done; '
+                    'exit 0',
+                ]
+            )
 
         # ── User operations ───────────────────────────────────────────────
 
@@ -832,6 +910,7 @@ class Worker(QObject):
                 break
             self._log("")
             self._log(f"━━━━━ {title}")
+            emit_initial_progress_once()
             self.current_op.emit(title)
             self._cancel.wait(random.uniform(0.2, 0.9))
             try:
@@ -848,7 +927,6 @@ class Worker(QObject):
             self._log("")
             self._log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  {T['summary_title']}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
-            smart_file = Path("/tmp/kleon_smart.txt")
             self._log("")
 
             avail, size = df_avail_size_root()
@@ -880,19 +958,39 @@ class Worker(QObject):
 
             self._log("")
             self._log(T["summary_smart"])
-            if smart_file.exists():
+            if smart_file is not None and smart_file.exists():
+                has_smart_data = False
                 try:
                     for line in smart_file.read_text().splitlines():
                         if line.strip():
+                            has_smart_data = True
                             self._log(f"  {line.strip()}")
+                    if not has_smart_data:
+                        self._log(T["summary_no_data"])
                 except Exception:
                     self._log(T["summary_no_data"])
                 try:
                     smart_file.unlink()
                 except Exception:
                     pass
+                try:
+                    if smart_dir is not None:
+                        smart_dir.rmdir()
+                except Exception:
+                    pass
             else:
                 self._log(T["summary_no_data"])
+                try:
+                    if smart_dir is not None:
+                        shutil.rmtree(smart_dir, ignore_errors=True)
+                except Exception:
+                    pass
+
+        if self._cancel.is_set() and smart_dir is not None:
+            try:
+                shutil.rmtree(smart_dir, ignore_errors=True)
+            except Exception:
+                pass
 
         self.running.emit(False)
         self.finished.emit()
@@ -1260,7 +1358,7 @@ class MainWindow(QMainWindow):
             QCheckBox {{
                 color: {t['text']};
                 spacing: 8px;
-                padding: 4px 7px;
+                padding: 4px 7px 6px 7px;
                 border-radius: 7px;
             }}
 
@@ -1270,10 +1368,6 @@ class MainWindow(QMainWindow):
 
             QCheckBox:disabled {{
                 color: {t['disabled']};
-            }}
-
-            QWidget#passwordRow QCheckBox {{
-                color: {t['muted']};
             }}
 
             QToolBar#mainToolBar {{
@@ -1341,8 +1435,8 @@ class MainWindow(QMainWindow):
         so the application logic can stay almost unchanged.
         """
         self.setObjectName("Kleon")
-        self.resize(980, 660)
-        self.setMinimumSize(820, 560)
+        self.resize(1000, 650)
+        self.setMinimumSize(840, 550)
 
         self.centralwidget = QWidget(self)
         self.centralwidget.setObjectName("centralwidget")
@@ -1367,7 +1461,7 @@ class MainWindow(QMainWindow):
 
         ops_layout = QVBoxLayout(self.opsBox)
         ops_layout.setContentsMargins(22, 28, 22, 22)
-        ops_layout.setSpacing(7)
+        ops_layout.setSpacing(5)
 
         cb_font = QFont()
         cb_font.setPointSize(10)
@@ -1378,6 +1472,7 @@ class MainWindow(QMainWindow):
             f = QFont(cb_font)
             f.setItalic(italic)
             cb.setFont(f)
+            cb.setMinimumHeight(cb.fontMetrics().height() + 10)
             cb.setChecked(checked)
             cb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
             return cb
@@ -1688,13 +1783,19 @@ class MainWindow(QMainWindow):
         self.progressBar.setValue(value)
 
     def set_running(self, running: bool):
-        """Enable/disable controls based on running state."""
-        self.actionRun.setEnabled(not running)
-        self.actionStop.setEnabled(running)
-        self.actionExport.setEnabled(not running)
-        self.actionInfo.setEnabled(not running)
-        self.actionExit.setEnabled(not running)
-        self._set_toolbar_progress_visible(running)
+        """Lock the UI while the worker is running."""
+        if not running:
+            # The UI is unlocked by _on_thread_finished(), after QThread has
+            # actually stopped. This avoids enabling Run while the previous
+            # worker/thread is still being torn down.
+            return
+
+        self.actionRun.setEnabled(False)
+        self.actionStop.setEnabled(True)
+        self.actionExport.setEnabled(False)
+        self.actionInfo.setEnabled(False)
+        self.actionExit.setEnabled(False)
+        self._set_toolbar_progress_visible(True)
 
         for cb in [
             self.dnfOpt, self.flatpakOpt, self.cacheOpt, self.kernelOpt,
@@ -1702,16 +1803,10 @@ class MainWindow(QMainWindow):
             self.abrtOpt, self.logsOpt, self.coredumpOpt, self.packagekitOpt,
             self.tmpOpt, self.passwordOpt,
         ]:
-            cb.setEnabled(not running)
+            cb.setEnabled(False)
 
-        if running:
-            self.setWindowTitle(f"{APP_STUDIO} {APP_TITLE} — {T['status_running']}")
-            self._set_status(T["status_running"])
-        else:
-            # Restore the browserOpt → passwordOpt dependency
-            self.passwordOpt.setEnabled(self.browserOpt.isChecked())
-            self.setWindowTitle(f"{APP_STUDIO} {APP_TITLE}")
-            self._set_status(T["status_ready"])
+        self.setWindowTitle(f"{APP_STUDIO} {APP_TITLE} — {T['status_running']}")
+        self._set_status(T["status_running"])
 
     def on_info(self):
         """Show the About dialog."""
@@ -1777,6 +1872,13 @@ class MainWindow(QMainWindow):
 
     def on_start(self):
         """Collect selected options and start the worker in a dedicated thread."""
+
+        if self._worker_thread is not None:
+            return
+
+        self.actionRun.setEnabled(False)
+        self.actionStop.setEnabled(True)
+
         ops = SelectedOps(
             dnf=self.dnfOpt.isChecked(),
             flatpak=self.flatpakOpt.isChecked(),
@@ -1811,6 +1913,7 @@ class MainWindow(QMainWindow):
         self._worker.current_op.connect(self._on_current_op, Qt.ConnectionType.QueuedConnection)
         self._worker.finished.connect(self._worker_thread.quit,      Qt.ConnectionType.QueuedConnection)
         self._worker.finished.connect(self._worker.deleteLater,      Qt.ConnectionType.QueuedConnection)
+        self._worker_thread.finished.connect(self._on_thread_finished, Qt.ConnectionType.QueuedConnection)
         self._worker_thread.finished.connect(self._worker_thread.deleteLater, Qt.ConnectionType.QueuedConnection)
 
         self._worker_thread.start()
@@ -1821,6 +1924,32 @@ class MainWindow(QMainWindow):
             self._set_status(T["status_stopped"])
         else:
             self._set_status(T["status_done"])
+
+    def _on_thread_finished(self):
+        """Unlock the UI and clear references after the QThread has really finished."""
+        final_status = self._status_label.text()
+
+        self._worker = None
+        self._worker_thread = None
+
+        self.actionStop.setEnabled(False)
+        self.actionExport.setEnabled(True)
+        self.actionInfo.setEnabled(True)
+        self.actionExit.setEnabled(True)
+        self._set_toolbar_progress_visible(False)
+
+        for cb in [
+            self.dnfOpt, self.flatpakOpt, self.cacheOpt, self.kernelOpt,
+            self.systemdOpt, self.bashOpt, self.browserOpt, self.recentOpt,
+            self.abrtOpt, self.logsOpt, self.coredumpOpt, self.packagekitOpt,
+            self.tmpOpt, self.passwordOpt,
+        ]:
+            cb.setEnabled(True)
+
+        self.passwordOpt.setEnabled(self.browserOpt.isChecked())
+        self.setWindowTitle(f"{APP_STUDIO} {APP_TITLE}")
+        self._update_run_enabled()
+        self._set_status(final_status)
 
     def _on_current_op(self, op: str):
         """Update the status bar with the current operation name."""
