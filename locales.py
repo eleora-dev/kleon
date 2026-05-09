@@ -1,0 +1,304 @@
+#!/usr/bin/env python3
+"""Localization strings for Eleòra CharM."""
+
+import locale
+import os
+
+
+# ── Localisation ──────────────────────────────────────────────────────────────
+
+_STRINGS = {
+    "en": {
+        "welcome_os":           "System :",
+        "welcome_kernel":       "Kernel :",
+        "welcome_host":         "Host   :",
+        "welcome_prompt":       "Ready. Select operations and press Run Maintenance.",
+        "label_user":           "User   :",
+        "label_home":           "Home   :",
+        "no_ops":               "No operation selected.",
+        "stop_requested":       "⏹ Stop request sent…",
+        "interrupted":          "⏹ Interrupted by user.",
+        "cmd_not_found":        "✖ Command not found",
+        "pkexec_not_found":     "✖ pkexec not found",
+        "op_error":             "✖ Error in",
+        "sec_kernel":           "Obsolete kernels (root)",
+        "sec_logs":             "Old logs in /var/log (root)",
+        "sec_tmp":              "Temporary files (root)",
+        "sec_abrt_user":        "Crash report (user)",
+        "sec_bash_user":        "Bash (user)",
+        "sec_cache_user":       "Cache (user)",
+        "sec_browser_user":     "Browser Cleanup (user)",
+        "sec_recent_user":      "Recent documents (user)",
+        "summary_title":        "Summary",
+        "summary_avail":        "Available space     :",
+        "summary_avail_unit":   "free of",
+        "summary_freed_label":  "Freed space         :",
+        "summary_freed_none":   "Freed space         : ✖",
+        "summary_cache":        "User cache          :",
+        "summary_smart":        "Disk status (SMART) :",
+        "summary_no_data":      "  Data not available",
+        "smart_status":         "Status :",
+        "smart_usage":          "Usage  :",
+        "hl_labels": (
+            "User   :", "Home   :", "System :", "Kernel :", "Host   :",
+            "Available space     :", "Freed space         :",
+            "User cache          :", "Disk status (SMART) :",
+            "  Status :", "  Temp.  :", "  Usage  :",
+        ),
+        "dnf_upgrade_nothing":  "✔ No updates available",
+        "dnf_upgrade_ok":       "✔ Package upgrade complete",
+        "dnf_upgrade_err":      "✖ DNF upgrade error",
+        "dnf_remove_nothing":   "✔ No unused packages to remove",
+        "dnf_remove_ok":        "✔ Unused packages removed",
+        "dnf_remove_err":       "✖ Autoremove error",
+        "dnf_clean_ok":         "✔ DNF cache cleared",
+        "dnf_clean_err":        "✖ DNF cache cleanup error",
+        "dnf_libdnf5_ok":       "✔ libdnf5 cache cleared",
+        "dnf_sysupgrade_ok":    "✔ System upgrade data cleaned",
+        "fp_not_found":         "✖ Flatpak not found",
+        "fp_update_nothing":    "✔ Flatpak apps already up to date",
+        "fp_update_ok":         "✔ Flatpak apps updated",
+        "fp_update_err":        "✖ Flatpak update error",
+        "fp_unused_nothing":    "✔ No unused Flatpak runtimes",
+        "fp_unused_ok":         "✔ Unused Flatpak runtimes removed",
+        "fp_unused_err":        "✖ Flatpak runtime removal error",
+        "kernel_nothing":       "✔ No obsolete kernels to remove",
+        "kernel_ok":            "✔ Obsolete kernels removed",
+        "journal_reduced":      "✔ Journal reduced to",
+        "journal_freed":        "freed",
+        "journal_within":       "✔ Journal already within limit",
+        "journal_used":         "used",
+        "logs_ok":              "✔ Logs removed: $n files",
+        "coredump_ok":          "✔ Coredumps removed: $n files",
+        "coredump_no_dir":      "✖ Coredump directory not found",
+        "pk_ok":                "✔ PackageKit cache removed",
+        "pk_missing":           "✖ PackageKit cache not found",
+        "tmp_ok":               "✔ /tmp: $n items, /var/tmp: $m items removed",
+        "abrt_root_ok":         "✔ System crash reports removed: $n",
+        "bash_root_ok":         "✔ Root history cleared",
+        "bash_root_missing":    "✖ Root history not available",
+        "cache_no_dir":         "✖ Cache folder not found",
+        "cache_items_removed":  "items removed",
+        "cache_empty":          "✖ Cache is already empty",
+        "cache_pycache":        "__pycache__ folders removed",
+        "cache_read_err":       "✖ Cache read error",
+        "abrt_user_nothing":    "✖ No user crash reports found",
+        "abrt_user_ok":         "✔ User crash reports removed",
+        "err_generic":          "✖ Error",
+        "bash_user_missing":    "✖ User history not available",
+        "bash_user_ok":         "✔ User history cleared",
+        "recent_ok":            "✔ Recent documents removed",
+        "recent_nothing":       "✖ No recent documents found",
+        "browser_open":         "is open. Close it before running cleanup.",
+        "browser_cache":        "cache",
+        "browser_history":      "history",
+        "browser_sessions":     "sessions",
+        "browser_passwords":    "saved passwords",
+        "grp_actions":          "Actions",
+        "grp_log":              "Log",
+        "ui_sec_system":        "System",
+        "ui_sec_user":          "User",
+        "ui_sec_browser":       "Browser",
+        "btn_run":              "Run Maintenance",
+        "btn_stop_tip":         "Stop  (Esc)",
+        "btn_export_tip":       "Export log  (Ctrl+S)",
+        "btn_info_tip":         "About  (F1)",
+        "btn_exit_tip":         "Quit  (Ctrl+Q)",
+        "cb_kernel":            "Obsolete Kernels",
+        "cb_logs":              "Old Logs",
+        "cb_tmp":               "Temporary Files",
+        "cb_cache":             "User Cache",
+        "cb_browser":           "Browser Cleanup",
+        "cb_passwords":         "Delete Passwords",
+        "cb_recent":            "Recent Documents",
+        "ui_about_title":       "About",
+        "ui_export_title":      "Export log",
+        "ui_export_filter":     "Log (*.log);;Text (*.txt);;All (*.*)",
+        "ui_export_ok":         "Log exported successfully.",
+        "ui_export_err":        "Error saving file:\n",
+        "ui_export_box_title":  "Export Log",
+        "about_version":        "Version",
+        "about_license":        "License",
+        "about_description": (
+            "System maintenance utility for <b>Fedora Linux</b>, "
+            "optimized for <b>KDE Plasma</b>. Updates DNF and Flatpak packages, "
+            "removes obsolete kernels, and cleans logs, cache, temporary files and browser data."
+        ),
+        "about_source":         "Source code",
+        "about_bugreport":      "Report an issue",
+        "about_items": (
+            "• DNF upgrade and cleanup<br>"
+            "• Flatpak updates and unused package removal<br>"
+            "• Obsolete kernel removal<br>"
+            "• systemd journal size reduction<br>"
+            "• Old log removal in /var/log<br>"
+            "• Core dump removal (systemd-coredump)<br>"
+            "• PackageKit cache cleanup<br>"
+            "• Temporary file cleanup in /tmp and /var/tmp<br>"
+            "• Bash history cleanup<br>"
+            "• User cache cleanup<br>"
+            "• Recent documents removal<br>"
+            "• Browser data cleanup (Brave, Chrome, Firefox)"
+        ),
+        "status_ready":         "Ready",
+        "status_running":       "Maintenance in progress…",
+        "status_stopped":       "Stopped by user",
+        "status_done":          "Maintenance completed",
+    },
+
+    "it": {
+        "welcome_os":           "Sistema :",
+        "welcome_kernel":       "Kernel  :",
+        "welcome_host":         "Host    :",
+        "welcome_prompt":       "Pronto. Seleziona le operazioni e premi Avvia Manutenzione.",
+        "label_user":           "Utente  :",
+        "label_home":           "Home    :",
+        "no_ops":               "Nessuna operazione selezionata.",
+        "stop_requested":       "⏹ Richiesta di stop inviata…",
+        "interrupted":          "⏹ Interrotto dall'utente.",
+        "cmd_not_found":        "✖ Comando non trovato",
+        "pkexec_not_found":     "✖ pkexec non trovato",
+        "op_error":             "✖ Errore in",
+        "sec_kernel":           "Kernel obsoleti (root)",
+        "sec_logs":             "Registri obsoleti in /var/log (root)",
+        "sec_tmp":              "File temporanei (root)",
+        "sec_abrt_user":        "Crash report (utente)",
+        "sec_bash_user":        "Bash (utente)",
+        "sec_cache_user":       "Cache (utente)",
+        "sec_browser_user":     "Pulizia Browser (utente)",
+        "sec_recent_user":      "Documenti recenti (utente)",
+        "summary_title":        "Riepilogo",
+        "summary_avail":        "Spazio disponibile   :",
+        "summary_avail_unit":   "liberi su",
+        "summary_freed_label":  "Spazio liberato      :",
+        "summary_freed_none":   "Spazio liberato      : ✖",
+        "summary_cache":        "Cache utente         :",
+        "summary_smart":        "Stato dischi (SMART) :",
+        "summary_no_data":      "  Dati non disponibili",
+        "smart_status":         "Stato  :",
+        "smart_usage":          "Usura  :",
+        "hl_labels": (
+            "Utente  :", "Home    :", "Sistema :", "Kernel  :", "Host    :",
+            "Spazio disponibile   :", "Spazio liberato      :",
+            "Cache utente         :", "Stato dischi (SMART) :",
+            "  Stato  :", "  Temp.  :", "  Usura  :",
+        ),
+        "dnf_upgrade_nothing":  "✔ Nessun aggiornamento disponibile",
+        "dnf_upgrade_ok":       "✔ Aggiornamento pacchetti completato",
+        "dnf_upgrade_err":      "✖ Errore aggiornamento DNF",
+        "dnf_remove_nothing":   "✔ Nessun pacchetto inutilizzato da rimuovere",
+        "dnf_remove_ok":        "✔ Pacchetti inutilizzati rimossi",
+        "dnf_remove_err":       "✖ Errore rimozione automatica",
+        "dnf_clean_ok":         "✔ Cache DNF pulita",
+        "dnf_clean_err":        "✖ Errore pulizia cache DNF",
+        "dnf_libdnf5_ok":       "✔ Cache libdnf5 pulita",
+        "dnf_sysupgrade_ok":    "✔ Pulizia dati aggiornamento di sistema completata",
+        "fp_not_found":         "✖ Flatpak non trovato",
+        "fp_update_nothing":    "✔ Applicazioni Flatpak già aggiornate",
+        "fp_update_ok":         "✔ Applicazioni Flatpak aggiornate",
+        "fp_update_err":        "✖ Errore aggiornamento Flatpak",
+        "fp_unused_nothing":    "✔ Nessun runtime Flatpak inutilizzato",
+        "fp_unused_ok":         "✔ Runtime Flatpak inutilizzati rimossi",
+        "fp_unused_err":        "✖ Errore rimozione runtime Flatpak",
+        "kernel_nothing":       "✔ Nessun kernel obsoleto da rimuovere",
+        "kernel_ok":            "✔ Kernel obsoleti rimossi",
+        "journal_reduced":      "✔ Journal ridotto a",
+        "journal_freed":        "liberati",
+        "journal_within":       "✔ Journal già sotto soglia",
+        "journal_used":         "usati",
+        "logs_ok":              "✔ Log rimossi: $n file",
+        "coredump_ok":          "✔ Coredump rimossi: $n file",
+        "coredump_no_dir":      "✖ Directory coredump non presente",
+        "pk_ok":                "✔ Cache PackageKit rimossa",
+        "pk_missing":           "✖ Cache PackageKit non presente",
+        "tmp_ok":               "✔ /tmp: $n elementi, /var/tmp: $m elementi rimossi",
+        "abrt_root_ok":         "✔ Report di sistema rimossi: $n",
+        "bash_root_ok":         "✔ Cronologia root",
+        "bash_root_missing":    "✖ Cronologia root non disponibile",
+        "cache_no_dir":         "✖ Cartella cache non trovata",
+        "cache_items_removed":  "elementi rimossi",
+        "cache_empty":          "✖ Nessun file da eliminare nella cache",
+        "cache_pycache":        "cartelle __pycache__ rimosse",
+        "cache_read_err":       "✖ Errore lettura cache",
+        "abrt_user_nothing":    "✖ Nessun report utente trovato",
+        "abrt_user_ok":         "✔ Report utente rimossi",
+        "err_generic":          "✖ Errore",
+        "bash_user_missing":    "✖ Cronologia utente non disponibile",
+        "bash_user_ok":         "✔ Cronologia utente",
+        "recent_ok":            "✔ Documenti recenti rimossi",
+        "recent_nothing":       "✖ Nessun documento recente trovato",
+        "browser_open":         "è aperto. Chiudilo prima di avviare la pulizia.",
+        "browser_cache":        "cache",
+        "browser_history":      "cronologia",
+        "browser_sessions":     "sessioni",
+        "browser_passwords":    "password salvate",
+        "grp_actions":          "Azioni",
+        "grp_log":              "Log",
+        "ui_sec_system":        "Sistema",
+        "ui_sec_user":          "Utente",
+        "ui_sec_browser":       "Browser",
+        "btn_run":              "Avvia Manutenzione",
+        "btn_stop_tip":         "Interrompi  (Esc)",
+        "btn_export_tip":       "Esporta log  (Ctrl+S)",
+        "btn_info_tip":         "Informazioni  (F1)",
+        "btn_exit_tip":         "Esci  (Ctrl+Q)",
+        "cb_kernel":            "Kernel Obsoleti",
+        "cb_logs":              "Log Obsoleti",
+        "cb_tmp":               "File Temporanei",
+        "cb_cache":             "Cache Utente",
+        "cb_browser":           "Pulizia Browser",
+        "cb_passwords":         "Elimina Password",
+        "cb_recent":            "Documenti Recenti",
+        "ui_about_title":       "Informazioni su",
+        "ui_export_title":      "Esporta log",
+        "ui_export_filter":     "Log (*.log);;Testo (*.txt);;Tutti (*.*)",
+        "ui_export_ok":         "Log esportato con successo.",
+        "ui_export_err":        "Errore durante il salvataggio:\n",
+        "ui_export_box_title":  "Esporta Log",
+        "about_version":        "Versione",
+        "about_license":        "Licenza",
+        "about_description": (
+            "Utility di manutenzione del sistema per <b>Fedora Linux</b>, "
+            "ottimizzata per <b>KDE Plasma</b>. Aggiorna i pacchetti DNF e Flatpak, "
+            "rimuove kernel obsoleti, pulisce log, cache, file temporanei e dati browser."
+        ),
+        "about_source":         "Codice sorgente",
+        "about_bugreport":      "Segnala un problema",
+        "about_items": (
+            "• Aggiornamento e pulizia DNF<br>"
+            "• Gestione aggiornamenti e pacchetti inutilizzati Flatpak<br>"
+            "• Rimozione kernel obsoleti<br>"
+            "• Riduzione dimensione log systemd<br>"
+            "• Rimozione vecchi log in /var/log<br>"
+            "• Rimozione core dump (systemd-coredump)<br>"
+            "• Pulizia cache PackageKit<br>"
+            "• Pulizia file temporanei /tmp e /var/tmp<br>"
+            "• Pulizia cronologia Bash<br>"
+            "• Pulizia cache utente<br>"
+            "• Rimozione documenti recenti<br>"
+            "• Pulizia dati browser (Brave, Chrome, Firefox)"
+        ),
+        "status_ready":         "Pronto",
+        "status_running":       "Manutenzione in corso…",
+        "status_stopped":       "Interrotto dall'utente",
+        "status_done":          "Manutenzione completata",
+    },
+}
+
+
+def _detect_lang() -> str:
+    """Detect system language, preferring Italian if available."""
+    for var in ("LANGUAGE", "LANG", "LC_ALL", "LC_MESSAGES"):
+        val = os.environ.get(var, "")
+        if val.lower().startswith("it"):
+            return "it"
+    try:
+        loc = locale.getlocale()[0] or ""
+        if loc.lower().startswith("it"):
+            return "it"
+    except Exception:
+        pass
+    return "en"
+
+
+T = _STRINGS[_detect_lang()]
