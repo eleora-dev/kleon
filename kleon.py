@@ -32,14 +32,14 @@ from PySide6.QtWidgets import (
 
 from locales import T
 
-APP_TITLE   = "Kleon"
+APP_TITLE = "Kleon"
 APP_VERSION = "1.0"
-APP_YEAR    = "2026"
-APP_AUTHOR  = "Gerardo Perilli"
-APP_STUDIO  = "Eleòra"
-APP_URL     = "https://eleora.github.io/kleon/"
-APP_SOURCE  = "https://github.com/eleora-dev/kleon"
-APP_ISSUES  = "https://github.com/eleora-dev/kleon/issues"
+APP_YEAR = "2026"
+APP_AUTHOR = "Gerardo Perilli"
+APP_STUDIO = "Eleòra"
+APP_URL = "https://eleora.github.io/kleon/"
+APP_SOURCE = "https://github.com/eleora-dev/kleon"
+APP_ISSUES = "https://github.com/eleora-dev/kleon/issues"
 
 
 # ── Utility functions ─────────────────────────────────────────────────────────
@@ -232,36 +232,36 @@ def run_root_block(commands: List[List[str]], on_line, cancel_event) -> int:
 
 @dataclass
 class SelectedOps:
-    dnf:        bool
-    flatpak:    bool
-    cache:      bool
-    kernel:     bool
-    systemd:    bool
-    bash:       bool
-    browser:    bool
-    passwords:  bool
-    recent:     bool
-    logs:       bool
-    coredump:   bool
+    dnf: bool
+    flatpak: bool
+    cache: bool
+    kernel: bool
+    systemd: bool
+    bash: bool
+    browser: bool
+    passwords: bool
+    recent: bool
+    logs: bool
+    coredump: bool
     packagekit: bool
-    tmp:        bool
-    abrt:       bool
+    tmp: bool
+    abrt: bool
 
 
 # ── Worker: runs all operations in a separate thread ──────────────────────────
 
 class Worker(QObject):
-    log        = Signal(str)
-    progress   = Signal(int)
-    running    = Signal(bool)
-    finished   = Signal()
+    log = Signal(str)
+    progress = Signal(int)
+    running = Signal(bool)
+    finished = Signal()
     current_op = Signal(str)
 
     def __init__(self, ops: SelectedOps, user: str, home: str):
         super().__init__()
-        self.ops     = ops
-        self._user   = user
-        self._home   = Path(home)
+        self.ops = ops
+        self._user = user
+        self._home = Path(home)
         self._cancel = threading.Event()
 
     def cancel(self):
@@ -327,7 +327,7 @@ class Worker(QObject):
                 if "DNF" not in op_name:
                     self._cancel.wait(random.uniform(0.2, 0.9))
 
-        root_cmds:  List[List[str]]                      = []
+        root_cmds: List[List[str]] = []
         user_steps: List[Tuple[str, Callable[[], None]]] = []
 
         def add_root_title(title: str):
@@ -588,10 +588,10 @@ class Worker(QObject):
 
         # ── User operations ───────────────────────────────────────────────
 
-        add_user_op(self.ops.abrt,    T["sec_abrt_user"],    lambda: self.op_abrt(self._home))
-        add_user_op(self.ops.bash,    T["sec_bash_user"],    lambda: self.op_bash(self._home))
-        add_user_op(self.ops.cache,   T["sec_cache_user"],   lambda: self.op_cache(self._home))
-        add_user_op(self.ops.recent,  T["sec_recent_user"],  lambda: self.op_recent(self._home))
+        add_user_op(self.ops.abrt, T["sec_abrt_user"], lambda: self.op_abrt(self._home))
+        add_user_op(self.ops.bash, T["sec_bash_user"], lambda: self.op_bash(self._home))
+        add_user_op(self.ops.cache, T["sec_cache_user"], lambda: self.op_cache(self._home))
+        add_user_op(self.ops.recent, T["sec_recent_user"], lambda: self.op_recent(self._home))
         add_user_op(self.ops.browser, T["sec_browser_user"],
                     lambda: self.op_browser(self._user, self._home, self.ops.passwords))
 
@@ -794,8 +794,8 @@ class Worker(QObject):
         for Brave, Chrome and Firefox.
         """
         chromium_browsers = [
-            ("Brave",  home / ".config/BraveSoftware/Brave-Browser/Default", ["brave"]),
-            ("Chrome", home / ".config/google-chrome/Default",               ["chrome", "google-chrome"]),
+            ("Brave", home / ".config/BraveSoftware/Brave-Browser/Default", ["brave"]),
+            ("Chrome", home / ".config/google-chrome/Default", ["chrome", "google-chrome"]),
         ]
         for name, profile, procs in chromium_browsers:
             if not profile.is_dir():
@@ -872,19 +872,19 @@ class LogHighlighter(QSyntaxHighlighter):
     def _rebuild_formats(self):
         """Rebuild formats using the current palette."""
         palette = QApplication.palette()
-        accent  = palette.color(QPalette.ColorRole.Highlight)
+        accent = palette.color(QPalette.ColorRole.Highlight)
 
         # Semantic colors aligned with Breeze
-        ok_color   = QColor("#1cdc9a")   # Breeze positive green
-        err_color  = QColor("#da4453")   # Breeze red
-        stop_color = QColor("#f67400")   # Breeze orange
+        ok_color = QColor("#1cdc9a")  # Breeze positive green
+        err_color = QColor("#da4453")  # Breeze red
+        stop_color = QColor("#f67400")  # Breeze orange
 
         self.formats = {
             "accent": self._fmt(accent.name(), bold=True),
-            "ok":     self._fmt(ok_color.name()),
-            "err":    self._fmt(err_color.name()),
-            "stop":   self._fmt(stop_color.name()),
-            "dim":    self._fmt_weight(600),
+            "ok": self._fmt(ok_color.name()),
+            "err": self._fmt(err_color.name()),
+            "stop": self._fmt(stop_color.name()),
+            "dim": self._fmt_weight(600),
         }
         self.labels = T["hl_labels"]
 
@@ -937,7 +937,7 @@ class LogHighlighter(QSyntaxHighlighter):
 class MainWindow(QMainWindow):
 
     _SETTINGS_GEOMETRY = "mainWindow/geometry"
-    _SETTINGS_STATE    = "mainWindow/windowState"
+    _SETTINGS_STATE = "mainWindow/windowState"
 
     def __init__(self):
         super().__init__()
@@ -1187,20 +1187,20 @@ class MainWindow(QMainWindow):
             ops_layout.addSpacing(8)
             ops_layout.addWidget(label)
 
-        self.dnfOpt        = make_check("dnfOpt",        "DNF")
-        self.flatpakOpt    = make_check("flatpakOpt",    "Flatpak")
-        self.kernelOpt     = make_check("kernelOpt",     "Kernel Obsoleti")
-        self.systemdOpt    = make_check("systemdOpt",    "Journal systemd")
-        self.logsOpt       = make_check("logsOpt",       "Log Obsoleti")
-        self.coredumpOpt   = make_check("coredumpOpt",   "Core Dump")
+        self.dnfOpt = make_check("dnfOpt", "DNF")
+        self.flatpakOpt = make_check("flatpakOpt", "Flatpak")
+        self.kernelOpt = make_check("kernelOpt", "Kernel Obsoleti")
+        self.systemdOpt = make_check("systemdOpt", "Journal systemd")
+        self.logsOpt = make_check("logsOpt", "Log Obsoleti")
+        self.coredumpOpt = make_check("coredumpOpt", "Core Dump")
         self.packagekitOpt = make_check("packagekitOpt", "PackageKit")
-        self.tmpOpt        = make_check("tmpOpt",        "File Temporanei")
-        self.abrtOpt       = make_check("abrtOpt",       "Crash Report")
-        self.bashOpt       = make_check("bashOpt",       "Bash")
-        self.cacheOpt      = make_check("cacheOpt",      "Cache Utente")
-        self.recentOpt     = make_check("recentOpt",     "Documenti Recenti")
-        self.browserOpt    = make_check("browserOpt",    "Pulizia Browser")
-        self.passwordOpt   = make_check("passwordOpt",   "Elimina Password", checked=False, italic=True)
+        self.tmpOpt = make_check("tmpOpt", "File Temporanei")
+        self.abrtOpt = make_check("abrtOpt", "Crash Report")
+        self.bashOpt = make_check("bashOpt", "Bash")
+        self.cacheOpt = make_check("cacheOpt", "Cache Utente")
+        self.recentOpt = make_check("recentOpt", "Documenti Recenti")
+        self.browserOpt = make_check("browserOpt", "Pulizia Browser")
+        self.passwordOpt = make_check("passwordOpt", "Elimina Password", checked=False, italic=True)
 
         add_section(T["ui_sec_system"])
         for cb in [
@@ -1329,7 +1329,7 @@ class MainWindow(QMainWindow):
         self.progressBar.setTextVisible(True)
         prog_layout.addWidget(self.progressBar)
 
-        self.toolbarCenter.addWidget(spacer_page)    # index 0: spacer
+        self.toolbarCenter.addWidget(spacer_page)  # index 0: spacer
         self.toolbarCenter.addWidget(progress_page)  # index 1: progress bar
         self.toolbarCenter.setCurrentIndex(0)
 
@@ -1453,7 +1453,7 @@ class MainWindow(QMainWindow):
     def _show_welcome(self):
         """Populate the log with system information at startup."""
         try:
-            rel     = platform.freedesktop_os_release()
+            rel = platform.freedesktop_os_release()
             os_name = f"{rel.get('NAME', 'Linux')} {rel.get('VERSION', '')}"
         except Exception:
             os_name = platform.system()
@@ -1513,8 +1513,8 @@ class MainWindow(QMainWindow):
 
     def on_info(self):
         """Show the About dialog."""
-        palette     = self.palette()
-        link_color  = palette.color(QPalette.ColorRole.Link).name()
+        palette = self.palette()
+        link_color = palette.color(QPalette.ColorRole.Link).name()
         muted_color = palette.color(QPalette.ColorRole.PlaceholderText).name()
 
         QMessageBox.about(
@@ -1603,19 +1603,19 @@ class MainWindow(QMainWindow):
         self.progressBar.setValue(0)
         self._set_toolbar_progress_visible(True)
 
-        self._worker        = Worker(ops, self._real_user, str(self._real_home))
+        self._worker = Worker(ops, self._real_user, str(self._real_home))
         self._worker_thread = QThread()
         self._worker.moveToThread(self._worker_thread)
 
         # Connect worker signals to UI slots (QueuedConnection for thread safety)
         self._worker_thread.started.connect(self._worker.run)
-        self._worker.log.connect(self.append_log,           Qt.ConnectionType.QueuedConnection)
+        self._worker.log.connect(self.append_log, Qt.ConnectionType.QueuedConnection)
         self._worker.progress.connect(self.on_progress_changed, Qt.ConnectionType.QueuedConnection)
-        self._worker.running.connect(self.set_running,      Qt.ConnectionType.QueuedConnection)
+        self._worker.running.connect(self.set_running, Qt.ConnectionType.QueuedConnection)
         self._worker.finished.connect(self._on_worker_done, Qt.ConnectionType.QueuedConnection)
         self._worker.current_op.connect(self._on_current_op, Qt.ConnectionType.QueuedConnection)
-        self._worker.finished.connect(self._worker_thread.quit,      Qt.ConnectionType.QueuedConnection)
-        self._worker.finished.connect(self._worker.deleteLater,      Qt.ConnectionType.QueuedConnection)
+        self._worker.finished.connect(self._worker_thread.quit, Qt.ConnectionType.QueuedConnection)
+        self._worker.finished.connect(self._worker.deleteLater, Qt.ConnectionType.QueuedConnection)
         self._worker_thread.finished.connect(self._on_thread_finished, Qt.ConnectionType.QueuedConnection)
         self._worker_thread.finished.connect(self._worker_thread.deleteLater, Qt.ConnectionType.QueuedConnection)
 
