@@ -1635,6 +1635,8 @@ class MainWindow(QMainWindow):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
 
+        self._applying_theme = False
+
         # Real user info computed once at startup
         self._uid, self._real_user, self._real_home = real_user_info()
 
@@ -1796,6 +1798,9 @@ class MainWindow(QMainWindow):
 
     def _apply_app_styles(self):
         """Apply a CharM-like visual layer while keeping a KDE-native main window."""
+        if self._applying_theme:
+            return
+        self._applying_theme = True
         t = self._theme()
         # Make the root widgets follow the detected app theme even when Qt's
         # native palette disagrees with KDE. The stylesheet below then covers
@@ -2040,6 +2045,7 @@ class MainWindow(QMainWindow):
                 margin: 4px 0px;
             }}
         """)
+        self._applying_theme = False
 
     def _build_main_layout(self):
         """
