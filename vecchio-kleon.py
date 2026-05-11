@@ -7,7 +7,7 @@
  *  License: MIT
 """
 
-import os, pwd, shutil, subprocess, threading, shlex, platform, socket, random, signal, selectors, tempfile, re
+import os, pwd, shutil, subprocess, threading, shlex, platform, socket, random, signal, selectors, tempfile
 
 try:
     import resources
@@ -17,18 +17,17 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 from PySide6.QtCore import (
-    QObject, QThread, Signal, Qt, QSize, QUrl, QEvent
+    QObject, QThread, Signal, Qt, QSize, QByteArray
 )
 from PySide6.QtGui import (
-    QIcon, QPixmap, QSyntaxHighlighter, QTextCharFormat, QColor,
-    QPalette, QAction, QKeySequence, QFont, QFontDatabase, QDesktopServices
+    QIcon, QSyntaxHighlighter, QTextCharFormat, QColor,
+    QPalette, QAction, QKeySequence, QFont, QFontDatabase
 )
 from PySide6.QtWidgets import (
     QApplication, QFileDialog, QMessageBox, QMainWindow,
-    QWidget, QSizePolicy, QStackedWidget,
-    QHBoxLayout, QVBoxLayout, QLabel,
-    QGroupBox, QCheckBox, QPlainTextEdit, QProgressBar,
-    QGraphicsDropShadowEffect, QFrame, QPushButton, QToolButton, QDialog
+    QToolBar, QWidget, QSizePolicy, QStackedWidget,
+    QHBoxLayout, QVBoxLayout, QStatusBar, QLabel,
+    QGroupBox, QCheckBox, QPlainTextEdit, QProgressBar
 )
 
 from locales import T
@@ -38,271 +37,9 @@ APP_VERSION = "1.0"
 APP_YEAR = "2026"
 APP_AUTHOR = "Gerardo Perilli"
 APP_STUDIO = "Eleòra"
-APP_DIR = Path(__file__).resolve().parent
-APP_ICON_RESOURCE = ":/icons/kleon.png"
-APP_ICON_FALLBACK = APP_DIR / "assets" / "kleon.png"
-APP_ICON_CHAR = "K"
-DEV_URL = "https://github.com/eleora-dev"
+APP_URL = "https://eleora.github.io/kleon/"
+APP_SOURCE = "https://github.com/eleora-dev/kleon"
 APP_ISSUES = "https://github.com/eleora-dev/kleon/issues"
-APP_ACCENT = "#fe9306"
-APP_FOOTER = "#0161dc"
-APP_LOG_OK = "#1cdc9a"
-APP_LOG_ERROR = "#da4453"
-APP_LOG_STOP = "#f67400"
-
-APP_TITLEBAR_BORDER = "#d98d00"
-APP_TITLEBAR_TEXT = "#1f1f1f"
-APP_TITLEBAR_SUBTLE = "#4d3512"
-APP_TITLEBAR_HOVER = "rgba(0, 0, 0, 0.12)"
-APP_TITLEBAR_PRESSED = "rgba(0, 0, 0, 0.20)"
-APP_TITLEBAR_DISABLED = "rgba(31, 31, 31, 0.45)"
-APP_FOOTER_BUTTON_BG = "rgba(255, 255, 255, 0.15)"
-APP_FOOTER_BUTTON_HOVER = "rgba(255, 255, 255, 0.25)"
-LOG_RULE_CHAR = "━"
-LOG_RULE_WIDTH = 72
-
-
-def log_banner(title: str) -> tuple[str, str]:
-    """Return a left-aligned log banner with a title and a rule."""
-    return (
-        f"┏━ {title}",
-        f"┗{LOG_RULE_CHAR * LOG_RULE_WIDTH}",
-    )
-
-APP_THEME_LIGHT = {
-    "bg": "#ffffff",
-    "text": "#222222",
-    "nav_bg": "#f5f5f5",
-    "nav_border": "#e8e8e8",
-    "accent": APP_ACCENT,
-    "accent_text": "#ffffff",
-    "btn_color": "#222222",
-    "btn_hover_bg": "#eeeeee",
-    "footer_bg": APP_FOOTER,
-    "footer_text": "#ffffff",
-    "ctx_bg": "#ffffff",
-    "ctx_border": "#e0e0e0",
-    "ctx_text": "#222222",
-    "ctx_separator": "#e8e8e8",
-    "disabled": "#9a9a9a",
-    "titlebar_bg": APP_ACCENT,
-    "titlebar_border": APP_TITLEBAR_BORDER,
-    "titlebar_text": APP_TITLEBAR_TEXT,
-    "titlebar_subtle": APP_TITLEBAR_SUBTLE,
-    "titlebar_button_hover": APP_TITLEBAR_HOVER,
-    "titlebar_button_pressed": APP_TITLEBAR_PRESSED,
-    "titlebar_close_hover": APP_TITLEBAR_HOVER,
-    "titlebar_close_pressed": APP_TITLEBAR_PRESSED,
-    "titlebar_disabled": APP_TITLEBAR_DISABLED,
-    "footer_button_bg": APP_FOOTER_BUTTON_BG,
-    "footer_button_hover": APP_FOOTER_BUTTON_HOVER,
-    "log_ok": APP_LOG_OK,
-    "log_error": APP_LOG_ERROR,
-    "log_stop": APP_LOG_STOP,
-}
-
-APP_THEME_DARK = {
-    **APP_THEME_LIGHT,
-    "bg": "#1e1e1e",
-    "text": "#eeeeee",
-    "nav_bg": "#252525",
-    "nav_border": "#333333",
-    "btn_color": "#bbbbbb",
-    "btn_hover_bg": "#333333",
-    "ctx_bg": "#252525",
-    "ctx_border": "#383838",
-    "ctx_text": "#eeeeee",
-    "ctx_separator": "#383838",
-    "disabled": "#777777",
-}
-
-
-def _app_icon_source_pixmap() -> QPixmap:
-    """Return the best source pixmap for the application icon."""
-    pixmap = QPixmap(APP_ICON_RESOURCE)
-    if not pixmap.isNull():
-        return pixmap
-
-    if APP_ICON_FALLBACK.exists():
-        pixmap = QPixmap(str(APP_ICON_FALLBACK))
-        if not pixmap.isNull():
-            return pixmap
-
-    return QPixmap()
-
-
-def app_window_icon() -> QIcon:
-    """Return the app/window icon from Qt resources, with a file fallback."""
-    source = _app_icon_source_pixmap()
-    if source.isNull():
-        return QIcon()
-
-    icon = QIcon()
-    for size in (16, 22, 24, 32, 48, 64, 128, 256):
-        icon.addPixmap(
-            source.scaled(
-                size,
-                size,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation,
-            )
-        )
-    icon.addPixmap(source)
-    return icon
-
-
-def app_header_icon_pixmap(size: int = 34) -> QPixmap:
-    """Return a sharp app icon pixmap for custom title bars."""
-    source = _app_icon_source_pixmap()
-    if source.isNull():
-        return QPixmap()
-
-    screen = QApplication.primaryScreen()
-    dpr = screen.devicePixelRatio() if screen else 1.0
-    physical_size = int(round(size * dpr))
-
-    pixmap = source.scaled(
-        physical_size,
-        physical_size,
-        Qt.AspectRatioMode.KeepAspectRatio,
-        Qt.TransformationMode.SmoothTransformation,
-    )
-    pixmap.setDevicePixelRatio(dpr)
-    return pixmap
-
-
-def _rgb_lightness_from_config_value(value: str) -> Optional[float]:
-    """Return approximate lightness from KDE RGB config values such as '35,38,41'."""
-    try:
-        nums = [int(n) for n in re.findall(r"\d+", value)[:3]]
-        if len(nums) != 3:
-            return None
-        r, g, b = nums
-        return (max(r, g, b) + min(r, g, b)) / 2
-    except Exception:
-        return None
-
-
-def kde_uses_dark_palette() -> Optional[bool]:
-    """Detect KDE/Plasma light/dark preference from kdeglobals, when available.
-
-    Qt can report a light palette for Python apps even while Plasma is using a
-    dark color scheme. Reading kdeglobals first keeps the whole Kleon window
-    in sync with the actual KDE theme.
-    """
-    candidate_config_dirs: list[Path] = []
-
-    raw_xdg_config = os.environ.get("XDG_CONFIG_HOME")
-    if raw_xdg_config:
-        candidate_config_dirs.append(Path(raw_xdg_config).expanduser())
-
-    # When the app is launched through sudo/pkexec, Path.home() may point to
-    # /root.  KDE's theme lives in the real user's config directory, so include
-    # that path explicitly as well.
-    try:
-        real_uid = int(os.environ.get("SUDO_UID") or os.environ.get("PKEXEC_UID") or os.getuid())
-        real_home = Path(pwd.getpwuid(real_uid).pw_dir)
-        candidate_config_dirs.append(real_home / ".config")
-    except Exception:
-        pass
-
-    candidate_config_dirs.append(Path.home() / ".config")
-
-    candidates: list[Path] = []
-    seen_paths: set[Path] = set()
-    for config_dir in candidate_config_dirs:
-        for candidate in (config_dir / "kdeglobals", config_dir / "kdedefaults" / "kdeglobals"):
-            if candidate not in seen_paths:
-                candidates.append(candidate)
-                seen_paths.add(candidate)
-
-    for path in candidates:
-        if not path.exists():
-            continue
-
-        section = ""
-        color_scheme_name = ""
-        bg_lightness_values: list[float] = []
-
-        try:
-            for raw_line in path.read_text(encoding="utf-8", errors="ignore").splitlines():
-                line = raw_line.strip()
-                if not line or line.startswith(("#", ";")):
-                    continue
-                if line.startswith("[") and line.endswith("]"):
-                    section = line[1:-1]
-                    continue
-                if "=" not in line:
-                    continue
-                key, value = [part.strip() for part in line.split("=", 1)]
-
-                if section == "General" and key in {"ColorScheme", "Name"}:
-                    color_scheme_name = value.lower()
-
-                if section in {"Colors:Window", "Colors:View"} and key in {"BackgroundNormal", "BackgroundAlternate"}:
-                    lightness = _rgb_lightness_from_config_value(value)
-                    if lightness is not None:
-                        bg_lightness_values.append(lightness)
-        except Exception:
-            continue
-
-        if "dark" in color_scheme_name or "night" in color_scheme_name:
-            return True
-        if "light" in color_scheme_name:
-            return False
-        if bg_lightness_values:
-            return (sum(bg_lightness_values) / len(bg_lightness_values)) < 128
-
-    return None
-
-
-def app_uses_dark_palette(widget=None) -> bool:
-    """Return True when the active KDE/Qt palette is dark.
-
-    KDE config is checked before Qt's palette because Qt may expose a light
-    default palette to PySide apps even when Plasma itself is in dark mode.
-    """
-    forced = os.environ.get("KLEON_THEME", "").strip().lower()
-    if forced in {"dark", "d", "1", "true"}:
-        return True
-    if forced in {"light", "l", "0", "false"}:
-        return False
-
-    kde_dark = kde_uses_dark_palette()
-    if kde_dark is not None:
-        return kde_dark
-
-    app = QApplication.instance()
-
-    try:
-        if app is not None:
-            scheme = app.styleHints().colorScheme()
-            if scheme == Qt.ColorScheme.Dark:
-                return True
-            if scheme == Qt.ColorScheme.Light:
-                return False
-    except Exception:
-        pass
-
-    try:
-        palette = app.palette() if app is not None else QApplication.palette()
-        base = palette.color(QPalette.ColorRole.Base).lightness()
-        window = palette.color(QPalette.ColorRole.Window).lightness()
-        return ((base + window) / 2) < 128
-    except Exception:
-        return False
-
-
-def app_theme(widget=None) -> dict[str, str]:
-    """Return the shared light/dark visual palette used by the main window and About."""
-    t = dict(APP_THEME_DARK if app_uses_dark_palette() else APP_THEME_LIGHT)
-    # Keep the log area part of the same card palette. It must not keep a
-    # terminal-like dark background while the rest of the app is light.
-    t.update({
-        "log_bg": t["ctx_bg"],
-        "log_text": t["ctx_text"],
-    })
-    return t
 
 
 # ── Utility functions ─────────────────────────────────────────────────────────
@@ -548,8 +285,8 @@ class Worker(QObject):
 
         # Snapshot of used space before operations (to compute freed space)
         root_before = df_used_bytes_root()
-        for line in log_banner(f"{APP_STUDIO} {APP_TITLE.upper()} v{APP_VERSION}"):
-            self._log(line)
+
+        self._log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━  {APP_STUDIO} {APP_TITLE.upper()} v{APP_VERSION}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         self._log("")
         self._log(f"{T['welcome_os']} {os_name}")
         self._log(f"{T['welcome_kernel']} {platform.release()}")
@@ -618,7 +355,7 @@ class Worker(QObject):
 
         add_root_op(
             self.ops.dnf,
-            T["sec_dnf_root"],
+            "DNF (root)",
             [
                 ["bash", "-c",
                  f'log=$(mktemp /tmp/kleon_dnf.XXXXXX) || exit 1; '
@@ -653,7 +390,7 @@ class Worker(QObject):
 
         if self.ops.flatpak:
             total_ops += 1
-            add_root_title(T["sec_flatpak_root"])
+            add_root_title("Flatpak (root)")
             if shutil.which("flatpak") is None:
                 root_cmds.append(["echo", T["fp_not_found"]])
             else:
@@ -698,7 +435,7 @@ class Worker(QObject):
 
         add_root_op(
             self.ops.systemd,
-            T["sec_systemd_root"],
+            "Journal systemd (root)",
             [
                 ["bash", "-c",
                  f'before=$(du -sk /run/log/journal/ /var/log/journal/ 2>/dev/null '
@@ -734,7 +471,7 @@ class Worker(QObject):
 
         add_root_op(
             self.ops.coredump,
-            T["sec_coredump_root"],
+            "Core dump (root)",
             [
                 ["bash", "-c",
                  f'dir=/var/lib/systemd/coredump; '
@@ -749,7 +486,7 @@ class Worker(QObject):
 
         add_root_op(
             self.ops.packagekit,
-            T["sec_packagekit_root"],
+            "Cache PackageKit (root)",
             [
                 ["bash", "-c",
                  f'dir=/var/cache/PackageKit; '
@@ -776,7 +513,7 @@ class Worker(QObject):
 
         add_root_op(
             self.ops.abrt,
-            T["sec_abrt_root"],
+            "Crash report (root)",
             [
                 ["bash", "-c",
                  f'n=0; '
@@ -793,7 +530,7 @@ class Worker(QObject):
 
         add_root_op(
             self.ops.bash,
-            T["sec_bash_root"],
+            "Bash (root)",
             [
                 ["bash", "-c",
                  f'if [ -f /root/.bash_history ]; then '
@@ -822,11 +559,11 @@ class Worker(QObject):
                     '  [ -z "$model" ] && model="N/D"; '
                     '  health=$(echo "$out" | grep -E "self-assessment test result" | grep -o "PASSED\\|FAILED" | head -1); '
                     '  [ "$health" = "PASSED" ] && health="OK"; '
-                    f'  [ "$health" = "FAILED" ] && health="{T["smart_health_error"]}"; '
+                    '  [ "$health" = "FAILED" ] && health="ERRORE"; '
                     '  if [ -z "$health" ]; then '
                     '    warn=$(echo "$out" | grep "Critical Warning" | awk "{print \\$NF}" | head -1); '
                     '    if [ -n "$warn" ]; then '
-                    f'      [ "$warn" = "0x00" ] && health="OK" || health="{T["smart_health_warning"]}"; '
+                    '      [ "$warn" = "0x00" ] && health="OK" || health="ATTENZIONE"; '
                     '    fi; '
                     '  fi; '
                     '  [ -z "$health" ] && health="N/D"; '
@@ -891,8 +628,7 @@ class Worker(QObject):
             self.progress.emit(100)
             self._log("")
             self._log("")
-            for line in log_banner(T["summary_title"]):
-                self._log(line)
+            self._log(f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  {T['summary_title']}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
             self._log("")
 
@@ -1120,432 +856,6 @@ class Worker(QObject):
                 self._log(f"✔ Firefox: {T['browser_cache']}")
 
 
-# ── Custom frameless title bar ────────────────────────────────────────────────
-
-class WindowTitleBar(QFrame):
-    """Draggable title bar for the frameless, fixed-size window.
-
-    On KDE/Wayland, manually calling QWidget.move() is often ignored for
-    top-level windows.  Qt's native startSystemMove() asks the compositor to
-    perform the drag, exactly like a real title bar.  A manual fallback is kept
-    for X11/older Qt builds.
-    """
-
-    def __init__(self, owner):
-        super().__init__(owner)
-        self.owner = owner
-        self._drag_pos = None
-        self._system_move_active = False
-        self.setObjectName("TitleBar")
-        self.setMouseTracking(True)
-
-    def _start_system_move(self) -> bool:
-        try:
-            handle = self.owner.windowHandle()
-            if handle is not None and handle.startSystemMove():
-                self._system_move_active = True
-                return True
-        except Exception:
-            pass
-        self._system_move_active = False
-        return False
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            # Preferred path on KDE/Wayland. If the compositor accepts it, it
-            # will handle the whole drag and manual move() calls are skipped.
-            if self._start_system_move():
-                event.accept()
-                return
-
-            # Fallback for X11 or platforms where startSystemMove() is not
-            # available/accepted.
-            self._drag_pos = event.globalPosition().toPoint() - self.owner.frameGeometry().topLeft()
-            event.accept()
-            return
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event):
-        if self._system_move_active:
-            event.accept()
-            return
-
-        if self._drag_pos is not None and event.buttons() & Qt.MouseButton.LeftButton:
-            self.owner.move(event.globalPosition().toPoint() - self._drag_pos)
-            event.accept()
-            return
-        super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        self._drag_pos = None
-        self._system_move_active = False
-        super().mouseReleaseEvent(event)
-
-    def mouseDoubleClickEvent(self, event):
-        # The main window is intentionally fixed-size, so double-click does not
-        # maximize/resize it.
-        if event.button() == Qt.MouseButton.LeftButton:
-            event.accept()
-            return
-        super().mouseDoubleClickEvent(event)
-
-
-class AboutTitleBar(QFrame):
-    """Draggable title strip for the custom About dialog."""
-
-    def __init__(self, owner):
-        super().__init__(owner)
-        self.owner = owner
-        self._drag_pos = None
-        self._system_move_active = False
-        self.setObjectName("AboutTitleBar")
-        self.setMouseTracking(True)
-
-    def _start_system_move(self) -> bool:
-        try:
-            handle = self.owner.windowHandle()
-            if handle is not None and handle.startSystemMove():
-                self._system_move_active = True
-                return True
-        except Exception:
-            pass
-        self._system_move_active = False
-        return False
-
-    def mousePressEvent(self, event):
-        if event.button() == Qt.MouseButton.LeftButton:
-            if self._start_system_move():
-                event.accept()
-                return
-            self._drag_pos = event.globalPosition().toPoint() - self.owner.frameGeometry().topLeft()
-            event.accept()
-            return
-        super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event):
-        if self._system_move_active:
-            event.accept()
-            return
-        if self._drag_pos is not None and event.buttons() & Qt.MouseButton.LeftButton:
-            self.owner.move(event.globalPosition().toPoint() - self._drag_pos)
-            event.accept()
-            return
-        super().mouseMoveEvent(event)
-
-    def mouseReleaseEvent(self, event):
-        self._drag_pos = None
-        self._system_move_active = False
-        super().mouseReleaseEvent(event)
-
-
-class AboutDialog(QDialog):
-    """Custom, app-styled About window; no native QMessageBox."""
-
-    def __init__(self, parent: Optional["MainWindow"] = None):
-        super().__init__(parent)
-        self.parent_window = parent
-        self.t = app_theme(parent)
-        self.setWindowTitle(f"{T['ui_about_title']} {APP_TITLE}")
-        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
-        self.setWindowModality(Qt.WindowModality.ApplicationModal)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setMinimumWidth(560)
-        self.setMaximumWidth(680)
-        self._build_ui()
-        self._apply_styles()
-
-
-    def _open_url(self, url: str) -> None:
-        QDesktopServices.openUrl(QUrl(url))
-
-    def _link_button(self, text: str, url: str, tooltip: str) -> QPushButton:
-        btn = QPushButton(text, self)
-        btn.setObjectName("AboutLinkButton")
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        btn.setToolTip(tooltip)
-        btn.clicked.connect(lambda: self._open_url(url))
-        return btn
-
-    def _build_ui(self) -> None:
-        outer = QVBoxLayout(self)
-        outer.setContentsMargins(12, 12, 12, 12)
-        outer.setSpacing(0)
-
-        card = QFrame(self)
-        card.setObjectName("AboutCard")
-        shadow = QGraphicsDropShadowEffect(card)
-        shadow.setBlurRadius(30)
-        shadow.setOffset(0, 8)
-        shadow.setColor(QColor(0, 0, 0, 150 if app_uses_dark_palette(self.parent_window) else 46))
-        card.setGraphicsEffect(shadow)
-
-        card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(0, 0, 0, 0)
-        card_layout.setSpacing(0)
-
-        header = AboutTitleBar(self)
-        header.setFixedHeight(76)
-        header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(18, 12, 14, 12)
-        header_layout.setSpacing(12)
-
-        icon = QLabel(header)
-        icon.setObjectName("AboutIcon")
-        icon.setFixedSize(50, 50)
-        icon.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        pix = app_header_icon_pixmap(44)
-        if not pix.isNull():
-            icon.setPixmap(pix)
-        else:
-            icon.setText(APP_ICON_CHAR)
-            f = icon.font()
-            f.setPointSize(22)
-            f.setBold(True)
-            icon.setFont(f)
-
-        title_box = QWidget(header)
-        title_box.setObjectName("AboutTitleBox")
-        title_layout = QVBoxLayout(title_box)
-        title_layout.setContentsMargins(0, 0, 0, 0)
-        title_layout.setSpacing(1)
-
-        title = QLabel(f"{APP_STUDIO} {APP_TITLE}", title_box)
-        title.setObjectName("AboutTitle")
-        title_font = title.font()
-        title_font.setPointSize(16)
-        title_font.setWeight(QFont.Weight.Bold)
-        title.setFont(title_font)
-
-        subtitle = QLabel(f"{T['about_version']} {APP_VERSION} · {T['titlebar_subtitle']}", title_box)
-        subtitle.setObjectName("AboutSubtitle")
-        subtitle_font = subtitle.font()
-        subtitle_font.setPointSize(10)
-        subtitle.setFont(subtitle_font)
-
-        title_layout.addWidget(title)
-        title_layout.addWidget(subtitle)
-
-        close_btn = QPushButton("×", header)
-        close_btn.setObjectName("AboutCloseButton")
-        close_btn.setFixedSize(30, 30)
-        close_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        close_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        close_font = close_btn.font()
-        close_font.setPointSize(14)
-        close_font.setBold(True)
-        close_btn.setFont(close_font)
-        close_btn.setToolTip(T["about_close_tooltip"])
-        close_btn.clicked.connect(self.accept)
-
-        header_layout.addWidget(icon)
-        header_layout.addWidget(title_box, 1)
-        header_layout.addWidget(close_btn)
-
-        body = QWidget(card)
-        body.setObjectName("AboutBody")
-        body_layout = QVBoxLayout(body)
-        body_layout.setContentsMargins(22, 20, 22, 18)
-        body_layout.setSpacing(14)
-
-        description = QLabel(T["about_description"], body)
-        description.setObjectName("AboutDescription")
-        description.setWordWrap(True)
-        description.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        body_layout.addWidget(description)
-
-        meta = QFrame(body)
-        meta.setObjectName("AboutMeta")
-        meta_layout = QVBoxLayout(meta)
-        meta_layout.setContentsMargins(14, 12, 14, 12)
-        meta_layout.setSpacing(6)
-
-        def add_meta(label: str, value: str) -> None:
-            row = QHBoxLayout()
-            row.setContentsMargins(0, 0, 0, 0)
-            row.setSpacing(8)
-            key = QLabel(label, meta)
-            key.setObjectName("AboutMetaKey")
-            key.setMinimumWidth(105)
-            val = QLabel(value, meta)
-            val.setObjectName("AboutMetaValue")
-            val.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-            row.addWidget(key)
-            row.addWidget(val, 1)
-            meta_layout.addLayout(row)
-
-        add_meta(T["about_version"], APP_VERSION)
-        add_meta(T["about_author"], APP_AUTHOR)
-        add_meta(T["about_project"], f"{APP_STUDIO} {APP_TITLE}")
-        add_meta(T["about_license"], "MIT")
-        add_meta(T["about_platform"], "Fedora Linux / KDE Plasma")
-        body_layout.addWidget(meta)
-
-        links = QHBoxLayout()
-        links.setContentsMargins(0, 0, 0, 0)
-        links.setSpacing(8)
-        links.addWidget(self._link_button(T["about_github"], DEV_URL, T["about_github_tooltip"]))
-        links.addWidget(self._link_button(T["about_license"], "https://github.com/eleora-dev/kleon/blob/main/LICENSE", T["about_license_tooltip"]))
-        links.addWidget(self._link_button(T["about_bugreport"], APP_ISSUES, T["about_bugreport_tooltip"]))
-        links.addStretch(1)
-        body_layout.addLayout(links)
-
-        footer = QFrame(card)
-        footer.setObjectName("AboutFooter")
-        footer_layout = QHBoxLayout(footer)
-        footer_layout.setContentsMargins(18, 5, 18, 5)
-        footer_layout.setSpacing(8)
-
-        copyright_label = QLabel(f"© {APP_YEAR} {APP_STUDIO} · {APP_AUTHOR}", footer)
-        copyright_label.setObjectName("AboutCopyright")
-        ok_btn = QPushButton(T["about_ok"], footer)
-        ok_btn.setObjectName("AboutOkButton")
-        ok_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        ok_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        ok_btn.setToolTip(T["about_ok_tooltip"])
-        ok_btn.clicked.connect(self.accept)
-
-        footer_layout.addWidget(copyright_label)
-        footer_layout.addStretch(1)
-        footer_layout.addWidget(ok_btn)
-
-        card_layout.addWidget(header)
-        card_layout.addWidget(body)
-        card_layout.addWidget(footer)
-        outer.addWidget(card)
-
-    def _apply_styles(self) -> None:
-        t = self.t
-        pal = self.palette()
-        pal.setColor(QPalette.ColorRole.Window, QColor(t["ctx_bg"]))
-        pal.setColor(QPalette.ColorRole.Base, QColor(t["ctx_bg"]))
-        pal.setColor(QPalette.ColorRole.Text, QColor(t["text"]))
-        pal.setColor(QPalette.ColorRole.WindowText, QColor(t["text"]))
-        self.setPalette(pal)
-        self.setStyleSheet(f"""
-            QFrame#AboutCard {{
-                background: {t['ctx_bg']};
-                color: {t['text']};
-                border: 1px solid {t['ctx_border']};
-                border-radius: 14px;
-            }}
-
-            QFrame#AboutTitleBar {{
-                background: {t['titlebar_bg']};
-                color: {t['titlebar_text']};
-                border-top-left-radius: 13px;
-                border-top-right-radius: 13px;
-                border-bottom: 1px solid {t['titlebar_border']};
-            }}
-
-            QLabel#AboutIcon,
-            QWidget#AboutTitleBox,
-            QLabel#AboutTitle,
-            QLabel#AboutSubtitle {{
-                background: transparent;
-            }}
-
-            QLabel#AboutIcon {{
-                color: {t['titlebar_text']};
-            }}
-
-            QLabel#AboutTitle {{
-                color: {t['accent_text']};
-            }}
-
-            QLabel#AboutSubtitle {{
-                color: {t['titlebar_subtle']};
-            }}
-
-            QPushButton#AboutCloseButton {{
-                border: none;
-                border-radius: 6px;
-                background: transparent;
-                color: {t['titlebar_text']};
-                padding: 0px;
-            }}
-
-            QPushButton#AboutCloseButton:hover {{
-                background: {t['titlebar_close_hover']};
-                color: {t['titlebar_text']};
-            }}
-
-            QPushButton#AboutCloseButton:pressed {{
-                background: {t['titlebar_close_pressed']};
-                color: {t['titlebar_text']};
-            }}
-
-            QWidget#AboutBody {{
-                background: {t['ctx_bg']};
-                color: {t['text']};
-            }}
-
-            QWidget#AboutBody QLabel {{
-                background: transparent;
-            }}
-
-            QLabel#AboutDescription {{
-                color: {t['text']};
-                font-size: 11pt;
-                line-height: 150%;
-            }}
-
-            QFrame#AboutMeta {{
-                background: {t['bg']};
-                border: 1px solid {t['ctx_border']};
-                border-radius: 10px;
-            }}
-
-            QLabel#AboutMetaKey {{
-                color: {t['btn_color']};
-                font-weight: 700;
-            }}
-
-            QLabel#AboutMetaValue {{
-                color: {t['text']};
-            }}
-
-            QPushButton#AboutLinkButton {{
-                border: none;
-                border-radius: 6px;
-                background: {t['btn_hover_bg']};
-                color: {t['text']};
-                padding: 6px 10px;
-                font-weight: 600;
-            }}
-
-            QPushButton#AboutLinkButton:hover {{
-                background: {t['accent']};
-                color: {t['titlebar_text']};
-            }}
-
-            QFrame#AboutFooter {{
-                background: {t['footer_bg']};
-                color: {t['footer_text']};
-                border-bottom-left-radius: 13px;
-                border-bottom-right-radius: 13px;
-            }}
-
-            QLabel#AboutCopyright {{
-                background: transparent;
-                color: {t['footer_text']};
-            }}
-
-            QPushButton#AboutOkButton {{
-                border: none;
-                border-radius: 6px;
-                background: {t['footer_button_bg']};
-                color: {t['footer_text']};
-                padding: 3px 15px;
-                font-weight: 700;
-            }}
-
-            QPushButton#AboutOkButton:hover {{
-                background: {t['footer_button_hover']};
-            }}
-        """)
-
-
 # ── Log syntax highlighter ────────────────────────────────────────────────────
 
 class LogHighlighter(QSyntaxHighlighter):
@@ -1560,14 +870,20 @@ class LogHighlighter(QSyntaxHighlighter):
         self._rebuild_formats()
 
     def _rebuild_formats(self):
-        """Rebuild formats using the shared app palette."""
-        t = app_theme()
+        """Rebuild formats using the current palette."""
+        palette = QApplication.palette()
+        accent = palette.color(QPalette.ColorRole.Highlight)
+
+        # Semantic colors aligned with Breeze
+        ok_color = QColor("#1cdc9a")  # Breeze positive green
+        err_color = QColor("#da4453")  # Breeze red
+        stop_color = QColor("#f67400")  # Breeze orange
 
         self.formats = {
-            "accent": self._fmt(t["accent"], bold=True),
-            "ok": self._fmt(t["log_ok"]),
-            "err": self._fmt(t["log_error"]),
-            "stop": self._fmt(t["log_stop"]),
+            "accent": self._fmt(accent.name(), bold=True),
+            "ok": self._fmt(ok_color.name()),
+            "err": self._fmt(err_color.name()),
+            "stop": self._fmt(stop_color.name()),
             "dim": self._fmt_weight(600),
         }
         self.labels = T["hl_labels"]
@@ -1589,11 +905,6 @@ class LogHighlighter(QSyntaxHighlighter):
 
     def highlightBlock(self, text: str):
         """Apply highlighting to each log line."""
-        # Main log banners: accent color on the whole line
-        if text.startswith(("┏", "┗")):
-            self.setFormat(0, len(text), self.formats["accent"])
-            return
-
         # Section headers: accent color on the whole line
         if "━━━━━" in text:
             self.setFormat(0, len(text), self.formats["accent"])
@@ -1625,15 +936,11 @@ class LogHighlighter(QSyntaxHighlighter):
 
 class MainWindow(QMainWindow):
 
+    _SETTINGS_GEOMETRY = "mainWindow/geometry"
+    _SETTINGS_STATE = "mainWindow/windowState"
 
     def __init__(self):
         super().__init__()
-        self.setWindowFlags(
-            self.windowFlags()
-            | Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.MSWindowsFixedSizeDialogHint
-        )
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
 
         # Real user info computed once at startup
         self._uid, self._real_user, self._real_home = real_user_info()
@@ -1652,19 +959,6 @@ class MainWindow(QMainWindow):
         self.actionInfo.triggered.connect(self.on_info)
         self.actionExit.triggered.connect(self.close)
 
-    def showEvent(self, event):
-        super().showEvent(event)
-        self._refresh_window_buttons()
-
-    def changeEvent(self, event):
-        super().changeEvent(event)
-        self._refresh_window_buttons()
-        if event.type() in (QEvent.Type.ApplicationPaletteChange, QEvent.Type.PaletteChange):
-            self._apply_app_styles()
-            self._apply_window_shadow()
-            self._apply_panel_shadows()
-            self._setup_log_widget()
-
     # ── Close event ───────────────────────────────────────────────────────────
 
     def closeEvent(self, event):
@@ -1678,311 +972,133 @@ class MainWindow(QMainWindow):
     # ── UI setup helpers ──────────────────────────────────────────────────────
 
     def _theme(self) -> dict[str, str]:
-        """Return the shared CharM-aligned palette adapted to the active KDE/Qt theme."""
-        return app_theme(self)
-
-    def _build_title_bar(self):
-        """Build a CharM-like custom title bar for the frameless window."""
-        t = self._theme()
-        title_bar = WindowTitleBar(self)
-        title_bar.setFixedHeight(58)
-
-        layout = QHBoxLayout(title_bar)
-        layout.setContentsMargins(12, 8, 10, 8)
-        layout.setSpacing(8)
-
-        icon = QToolButton(title_bar)
-        icon.setObjectName("TitleBarIcon")
-        icon.setFixedSize(40, 40)
-        icon.setIconSize(QSize(34, 34))
-        icon.setCursor(Qt.CursorShape.PointingHandCursor)
-        icon.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        icon.setToolTip(T["titlebar_github_tooltip"])
-        icon.clicked.connect(lambda: QDesktopServices.openUrl(QUrl(DEV_URL)))
-        pix = app_header_icon_pixmap(34)
-        if not pix.isNull():
-            icon.setIcon(QIcon(pix))
-            icon.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
-        else:
-            icon.setText(APP_ICON_CHAR)
-            icon.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
-            f = icon.font()
-            f.setPointSize(16)
-            f.setBold(True)
-            icon.setFont(f)
-
-        title_box = QWidget(title_bar)
-        title_box.setObjectName("TitleBarText")
-        title_layout = QVBoxLayout(title_box)
-        title_layout.setContentsMargins(0, 0, 0, 0)
-        title_layout.setSpacing(0)
-
-        title = QLabel(f"{APP_STUDIO} {APP_TITLE}", title_box)
-        title.setObjectName("TitleBarTitle")
-        title_font = title.font()
-        title_font.setPointSize(12)
-        title_font.setWeight(QFont.Weight.Medium)
-        title.setFont(title_font)
-
-        subtitle = QLabel(f"v{APP_VERSION} · {T['titlebar_subtitle']}", title_box)
-        subtitle.setObjectName("TitleBarSubtitle")
-        subtitle_font = subtitle.font()
-        subtitle_font.setPointSize(9)
-        subtitle.setFont(subtitle_font)
-
-        title_layout.addWidget(title)
-        title_layout.addWidget(subtitle)
-
-        # Let clicks on title/subtitle reach WindowTitleBar, so the top strip
-        # behaves like a draggable custom title bar. The icon remains clickable
-        # and opens Eleòra on GitHub. Window controls keep their own events.
-        for drag_passthrough in (title_box, title, subtitle):
-            drag_passthrough.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
-
-        self.title_min_btn = self._window_button("–", T["window_minimize"], self.showMinimized)
-        self.title_close_btn = self._window_button("×", T["window_close"], self.close, close=True)
-
-        layout.addWidget(icon)
-        layout.addWidget(title_box)
-        layout.addStretch(1)
-        layout.addWidget(self.title_min_btn)
-        layout.addWidget(self.title_close_btn)
-
-        self.titleBar = title_bar
-        return title_bar
-
-    def _window_button(self, text: str, tooltip: str, slot, *, close: bool = False) -> QPushButton:
-        """Create one compact window-control button for the custom title bar."""
-        btn = QPushButton(text, self)
-        btn.setObjectName("CloseWindowButton" if close else "WindowButton")
-        btn.setFixedSize(28, 28)
-        btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        btn.setToolTip(tooltip)
-        font = btn.font()
-        font.setPointSize(12 if close else 11)
-        font.setBold(True)
-        btn.setFont(font)
-        btn.clicked.connect(slot)
-        return btn
-
-    def _refresh_window_buttons(self):
-        """Keep the fixed-size CharM-like shell consistent."""
-        # The main window is fixed-size and cannot be maximized. Keep the
-        # transparent gutter always visible so the card shadow remains visible.
-        if hasattr(self, "outerLayout"):
-            self.outerLayout.setContentsMargins(10, 10, 10, 10)
-
-    def _apply_window_shadow(self):
-        """Apply CharM's soft outer shadow to the whole window card."""
-        if not hasattr(self, "windowCard"):
-            return
-        is_dark = app_uses_dark_palette()
-        shadow = QGraphicsDropShadowEffect(self.windowCard)
-        shadow.setBlurRadius(30)
-        shadow.setOffset(0, 8)
-        shadow.setColor(QColor(0, 0, 0, 150 if is_dark else 46))
-        self.windowCard.setGraphicsEffect(shadow)
-
-    def _apply_panel_shadows(self):
-        """Apply the soft card shadow used by CharM to the two main panels."""
-        is_dark = app_uses_dark_palette()
-        for widget in (self.opsBox, self.logBox):
-            shadow = QGraphicsDropShadowEffect(widget)
-            shadow.setBlurRadius(18)
-            shadow.setOffset(0, 4)
-            shadow.setColor(QColor(0, 0, 0, 128 if is_dark else 38))
-            widget.setGraphicsEffect(shadow)
+        """Return a small CharM-inspired palette adapted to the active KDE theme."""
+        palette = self.palette()
+        is_dark = palette.color(QPalette.ColorRole.Window).lightness() < 128
+        if is_dark:
+            return {
+                "bg": "#1e1e1e",
+                "panel_bg": "#252525",
+                "panel_alt": "#2b2118",
+                "panel_border": "#383838",
+                "text": "#eeeeee",
+                "muted": "#b8b8b8",
+                "disabled": "#777777",
+                "accent": "#ffa726",
+                "accent_soft": "#332514",
+                "accent_mid": "#4a3217",
+                "accent_text": "#ffffff",
+                "log_bg": "#202020",
+                "log_text": "#f2f2f2",
+                "toolbar_bg": "#241f18",
+                "toolbar_border": "#3a3024",
+                "status_bg": "#252525",
+                "positive": "#1cdc9a",
+                "danger": "#da4453",
+            }
+        return {
+            "bg": "#ffffff",
+            "panel_bg": "#fafafa",
+            "panel_alt": "#fff3e0",
+            "panel_border": "#e8e8e8",
+            "text": "#222222",
+            "muted": "#666666",
+            "disabled": "#9a9a9a",
+            "accent": "#ffa726",
+            "accent_soft": "#fff3e0",
+            "accent_mid": "#ffe0b2",
+            "accent_text": "#ffffff",
+            "log_bg": "#f5f5f5",
+            "log_text": "#1a1a2e",
+            "toolbar_bg": "#fff3e0",
+            "toolbar_border": "#eadfce",
+            "status_bg": "#ffffff",
+            "positive": "#1cdc9a",
+            "danger": "#da4453",
+        }
 
     def _apply_app_styles(self):
-        """Apply a CharM-like visual layer while keeping a KDE-native main window."""
+        """Apply the CharM-inspired visual layer while keeping a KDE-native window."""
         t = self._theme()
-        # Make the root widgets follow the detected app theme even when Qt's
-        # native palette disagrees with KDE. The stylesheet below then covers
-        # every child consistently.
-        pal = self.palette()
-        pal.setColor(QPalette.ColorRole.Window, QColor(t["ctx_bg"]))
-        pal.setColor(QPalette.ColorRole.Base, QColor(t["ctx_bg"]))
-        pal.setColor(QPalette.ColorRole.AlternateBase, QColor(t["bg"]))
-        pal.setColor(QPalette.ColorRole.Text, QColor(t["text"]))
-        pal.setColor(QPalette.ColorRole.WindowText, QColor(t["text"]))
-        self.setPalette(pal)
-        self.centralwidget.setPalette(pal)
-        self.windowCard.setPalette(pal)
         self.setStyleSheet(f"""
             QMainWindow {{
-                background: transparent;
+                background: {t['bg']};
                 color: {t['text']};
             }}
 
             QWidget#centralwidget {{
-                background: transparent;
-                color: {t['text']};
-            }}
-
-            QFrame#windowCard {{
-                background: {t['ctx_bg']};
-                color: {t['text']};
-                border: 1px solid {t['nav_border']};
-                border-radius: 14px;
-            }}
-
-            QFrame#TitleBar {{
-                background: {t['titlebar_bg']};
-                color: {t['titlebar_text']};
-                border-top-left-radius: 13px;
-                border-top-right-radius: 13px;
-                border-bottom: 1px solid {t['titlebar_border']};
-            }}
-
-            QToolButton#TitleBarIcon {{
-                border: none;
-                border-radius: 8px;
-                background: transparent;
-                color: {t['titlebar_text']};
-                font-weight: 800;
-                padding: 0px;
-            }}
-
-            QToolButton#TitleBarIcon:hover {{
-                background: {t['titlebar_button_hover']};
-            }}
-
-            QToolButton#TitleBarIcon:pressed {{
-                background: {t['titlebar_button_pressed']};
-            }}
-
-            QWidget#TitleBarText {{
-                background: transparent;
-            }}
-
-            QLabel#TitleBarTitle {{
-                background: transparent;
-                color: {t['accent_text']};
-                font-weight: 700;
-            }}
-
-            QLabel#TitleBarSubtitle {{
-                background: transparent;
-                color: {t['titlebar_subtle']};
-            }}
-
-            QPushButton#WindowButton,
-            QPushButton#CloseWindowButton {{
-                border: none;
-                border-radius: 6px;
-                background: transparent;
-                color: {t['titlebar_text']};
-                padding: 0px;
-            }}
-
-            QPushButton#WindowButton:hover {{
-                background: {t['titlebar_button_hover']};
-                color: {t['titlebar_text']};
-            }}
-
-            QPushButton#WindowButton:pressed {{
-                background: {t['titlebar_button_pressed']};
-                color: {t['titlebar_text']};
-            }}
-
-            QPushButton#CloseWindowButton:hover {{
-                background: {t['titlebar_close_hover']};
-                color: {t['titlebar_text']};
-            }}
-
-            QPushButton#CloseWindowButton:pressed {{
-                background: {t['titlebar_close_pressed']};
-                color: {t['titlebar_text']};
-            }}
-
-            QPushButton#CloseWindowButton:disabled {{
-                color: {t['titlebar_disabled']};
-                background: transparent;
-            }}
-
-            QWidget#contentWidget {{
                 background: {t['bg']};
                 color: {t['text']};
-            }}
-
-            QFrame#bodyArea {{
-                background: {t['bg']};
-                border: none;
             }}
 
             QGroupBox {{
-                background: {t['ctx_bg']};
+                background: {t['panel_bg']};
                 color: {t['text']};
-                border: 1px solid {t['ctx_border']};
-                border-radius: 12px;
-                margin-top: 16px;
-                padding-top: 18px;
+                border: 1px solid {t['panel_border']};
+                border-radius: 13px;
+                margin-top: 15px;
+                padding-top: 17px;
                 font-weight: 700;
             }}
 
             QGroupBox::title {{
                 subcontrol-origin: margin;
-                subcontrol-position: top left;
-                left: 14px;
-                padding: 0 7px;
+                subcontrol-position: top center;
+                padding: 0 10px;
                 color: {t['text']};
-                background: {t['ctx_bg']};
+                background: {t['bg']};
             }}
 
             QLabel#sectionLabel {{
                 color: {t['accent']};
                 font-size: 11px;
                 font-weight: 800;
-                padding: 8px 0 2px 0;
+                letter-spacing: 0.8px;
+                text-transform: uppercase;
+                padding: 7px 0 2px 0;
             }}
 
             QCheckBox {{
-                color: {t['btn_color']};
+                color: {t['text']};
                 spacing: 8px;
-                padding: 5px 7px;
-                border: none;
-                border-radius: 6px;
-                background: transparent;
+                padding: 4px 7px 6px 7px;
+                border-radius: 7px;
             }}
 
             QCheckBox:hover {{
-                background: {t['btn_hover_bg']};
-                color: {t['accent']};
+                background: {t['accent_soft']};
             }}
 
             QCheckBox:disabled {{
                 color: {t['disabled']};
-                background: transparent;
             }}
 
-            QFrame#mainToolBar {{
-                background: {t['nav_bg']};
+            QToolBar#mainToolBar {{
+                background: {t['toolbar_bg']};
                 border: none;
-                border-bottom: 1px solid {t['nav_border']};
-                padding: 7px 10px;
+                border-bottom: 1px solid {t['toolbar_border']};
+                padding: 6px 8px;
                 spacing: 5px;
             }}
 
-            QFrame#mainToolBar QToolButton {{
-                color: {t['btn_color']};
+            QToolBar#mainToolBar QToolButton {{
+                color: {t['text']};
                 background: transparent;
                 border: none;
-                border-radius: 6px;
-                padding: 5px 9px;
+                border-radius: 8px;
+                padding: 6px 10px;
             }}
 
-            QFrame#mainToolBar QToolButton:hover {{
-                background: {t['btn_hover_bg']};
-                color: {t['accent']};
+            QToolBar#mainToolBar QToolButton:hover {{
+                background: {t['accent_soft']};
             }}
 
-            QFrame#mainToolBar QToolButton:pressed {{
+            QToolBar#mainToolBar QToolButton:pressed {{
                 background: {t['accent']};
                 color: {t['accent_text']};
             }}
 
-            QFrame#mainToolBar QToolButton:disabled {{
+            QToolBar#mainToolBar QToolButton:disabled {{
                 color: {t['disabled']};
                 background: transparent;
             }}
@@ -1990,9 +1106,9 @@ class MainWindow(QMainWindow):
             QProgressBar {{
                 min-height: 17px;
                 max-height: 17px;
-                border: 1px solid {t['ctx_border']};
+                border: 1px solid {t['panel_border']};
                 border-radius: 8px;
-                background: {t['ctx_bg']};
+                background: {t['panel_bg']};
                 color: {t['text']};
                 text-align: center;
                 font-size: 10px;
@@ -2004,40 +1120,14 @@ class MainWindow(QMainWindow):
                 background: {t['accent']};
             }}
 
-            QFrame#statusFooter {{
-                background: {t['footer_bg']};
-                color: {t['footer_text']};
-                border-bottom-left-radius: 13px;
-                border-bottom-right-radius: 13px;
+            QStatusBar {{
+                background: {t['status_bg']};
+                color: {t['muted']};
+                border-top: 1px solid {t['panel_border']};
+            }}
+
+            QStatusBar::item {{
                 border: none;
-            }}
-
-            QFrame#statusFooter QLabel {{
-                background: transparent;
-                color: {t['footer_text']};
-            }}
-
-            QMenu {{
-                background: {t['ctx_bg']};
-                color: {t['ctx_text']};
-                border: 1px solid {t['ctx_border']};
-                border-radius: 8px;
-                padding: 4px 0px;
-            }}
-
-            QMenu::item {{
-                padding: 7px 18px 7px 14px;
-            }}
-
-            QMenu::item:selected {{
-                background: {t['accent']};
-                color: {t['accent_text']};
-            }}
-
-            QMenu::separator {{
-                height: 1px;
-                background: {t['ctx_separator']};
-                margin: 4px 0px;
             }}
         """)
 
@@ -2048,40 +1138,19 @@ class MainWindow(QMainWindow):
         so the application logic can stay almost unchanged.
         """
         self.setObjectName("Kleon")
-        # Fixed-size window: not resizable by edges and no maximize control.
-        # The dimensions keep every checkbox visible while preserving the
-        # floating-card look and shadow gutter.
-        self.setFixedSize(1040, 760)
+        self.resize(1000, 650)
+        self.setMinimumSize(840, 550)
 
         self.centralwidget = QWidget(self)
         self.centralwidget.setObjectName("centralwidget")
-        self.centralwidget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setCentralWidget(self.centralwidget)
 
-        # CharM-like outer shell: the real UI is a rounded card floating on a
-        # transparent gutter, so the drop shadow can be visible.
-        self.outerLayout = QVBoxLayout(self.centralwidget)
-        self.outerLayout.setContentsMargins(10, 10, 10, 10)
-        self.outerLayout.setSpacing(0)
-
-        self.windowCard = QFrame(self.centralwidget)
-        self.windowCard.setObjectName("windowCard")
-        self.windowCard.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.outerLayout.addWidget(self.windowCard)
-
-        self.windowRootLayout = QVBoxLayout(self.windowCard)
-        self.windowRootLayout.setContentsMargins(0, 0, 0, 0)
-        self.windowRootLayout.setSpacing(0)
-        self.windowRootLayout.addWidget(self._build_title_bar())
-
-        self.contentWidget = QWidget(self.windowCard)
-        self.contentWidget.setObjectName("contentWidget")
-        root_layout = QHBoxLayout(self.contentWidget)
-        root_layout.setContentsMargins(18, 18, 18, 16)
-        root_layout.setSpacing(14)
+        root_layout = QHBoxLayout(self.centralwidget)
+        root_layout.setContentsMargins(24, 24, 24, 20)
+        root_layout.setSpacing(22)
 
         # ── Left panel: maintenance operations ────────────────────────────
-        self.opsBox = QGroupBox(self.contentWidget)
+        self.opsBox = QGroupBox(self.centralwidget)
         self.opsBox.setObjectName("opsBox")
         self.opsBox.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         self.opsBox.setMinimumWidth(235)
@@ -2094,8 +1163,8 @@ class MainWindow(QMainWindow):
         self.opsBox.setFont(title_font)
 
         ops_layout = QVBoxLayout(self.opsBox)
-        ops_layout.setContentsMargins(18, 24, 18, 18)
-        ops_layout.setSpacing(4)
+        ops_layout.setContentsMargins(22, 28, 22, 22)
+        ops_layout.setSpacing(5)
 
         cb_font = QFont()
         cb_font.setPointSize(10)
@@ -2118,20 +1187,20 @@ class MainWindow(QMainWindow):
             ops_layout.addSpacing(8)
             ops_layout.addWidget(label)
 
-        self.dnfOpt = make_check("dnfOpt", T["cb_dnf"])
-        self.flatpakOpt = make_check("flatpakOpt", T["cb_flatpak"])
-        self.kernelOpt = make_check("kernelOpt", T["cb_kernel"])
-        self.systemdOpt = make_check("systemdOpt", T["cb_systemd"])
-        self.logsOpt = make_check("logsOpt", T["cb_logs"])
-        self.coredumpOpt = make_check("coredumpOpt", T["cb_coredump"])
-        self.packagekitOpt = make_check("packagekitOpt", T["cb_packagekit"])
-        self.tmpOpt = make_check("tmpOpt", T["cb_tmp"])
-        self.abrtOpt = make_check("abrtOpt", T["cb_abrt"])
-        self.bashOpt = make_check("bashOpt", T["cb_bash"])
-        self.cacheOpt = make_check("cacheOpt", T["cb_cache"])
-        self.recentOpt = make_check("recentOpt", T["cb_recent"])
-        self.browserOpt = make_check("browserOpt", T["cb_browser"])
-        self.passwordOpt = make_check("passwordOpt", T["cb_passwords"], checked=False, italic=True)
+        self.dnfOpt = make_check("dnfOpt", "DNF")
+        self.flatpakOpt = make_check("flatpakOpt", "Flatpak")
+        self.kernelOpt = make_check("kernelOpt", "Kernel Obsoleti")
+        self.systemdOpt = make_check("systemdOpt", "Journal systemd")
+        self.logsOpt = make_check("logsOpt", "Log Obsoleti")
+        self.coredumpOpt = make_check("coredumpOpt", "Core Dump")
+        self.packagekitOpt = make_check("packagekitOpt", "PackageKit")
+        self.tmpOpt = make_check("tmpOpt", "File Temporanei")
+        self.abrtOpt = make_check("abrtOpt", "Crash Report")
+        self.bashOpt = make_check("bashOpt", "Bash")
+        self.cacheOpt = make_check("cacheOpt", "Cache Utente")
+        self.recentOpt = make_check("recentOpt", "Documenti Recenti")
+        self.browserOpt = make_check("browserOpt", "Pulizia Browser")
+        self.passwordOpt = make_check("passwordOpt", "Elimina Password", checked=False, italic=True)
 
         add_section(T["ui_sec_system"])
         for cb in [
@@ -2157,14 +1226,14 @@ class MainWindow(QMainWindow):
         ops_layout.addStretch(1)
 
         # ── Right panel: log output ───────────────────────────────────────
-        self.logBox = QGroupBox(self.contentWidget)
+        self.logBox = QGroupBox(self.centralwidget)
         self.logBox.setObjectName("logBox")
         self.logBox.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         self.logBox.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.logBox.setFont(title_font)
 
         log_layout = QVBoxLayout(self.logBox)
-        log_layout.setContentsMargins(16, 24, 16, 16)
+        log_layout.setContentsMargins(22, 30, 22, 18)
         log_layout.setSpacing(0)
 
         self.logText = QPlainTextEdit(self.logBox)
@@ -2182,16 +1251,24 @@ class MainWindow(QMainWindow):
 
         root_layout.addWidget(self.opsBox)
         root_layout.addWidget(self.logBox, 1)
-        self.windowRootLayout.addWidget(self.contentWidget, 1)
+
+    def _hide_legacy_buttons(self):
+        """Hide legacy buttons defined in the .ui file (replaced by the toolbar)."""
+        for name in ("runButton", "stopButton", "exportButton", "infoButton", "exitButton"):
+            widget = getattr(self, name, None)
+            if widget is not None:
+                widget.hide()
+                widget.setEnabled(False)
 
     def _build_toolbar(self):
-        """Build a CharM-like in-window action bar under the custom title bar."""
-        tb = QFrame(self.windowCard)
+        """Build the main toolbar with actions, elastic spacer and progress bar."""
+        tb = QToolBar(self)
         tb.setObjectName("mainToolBar")
-        tb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        layout = QHBoxLayout(tb)
-        layout.setContentsMargins(10, 7, 10, 7)
-        layout.setSpacing(5)
+        tb.setMovable(False)
+        tb.setFloatable(False)
+        tb.setIconSize(QSize(22, 22))
+        tb.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
+        self.addToolBar(Qt.TopToolBarArea, tb)
         self.mainToolBar = tb
 
         self.actionRun = QAction(
@@ -2229,25 +1306,12 @@ class MainWindow(QMainWindow):
         self.actionExit.setShortcut(QKeySequence.StandardKey.Quit)
         self.actionExit.setToolTip(T["btn_exit_tip"])
 
-        for action in (self.actionRun, self.actionStop, self.actionExport, self.actionInfo, self.actionExit):
-            self.addAction(action)
+        tb.addAction(self.actionRun)
+        tb.addAction(self.actionStop)
+        tb.addAction(self.actionExport)
 
-        def add_action_button(action: QAction) -> QToolButton:
-            btn = QToolButton(tb)
-            btn.setDefaultAction(action)
-            btn.setToolButtonStyle(Qt.ToolButtonTextBesideIcon)
-            btn.setIconSize(QSize(20, 20))
-            btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-            btn.setCursor(Qt.CursorShape.PointingHandCursor)
-            layout.addWidget(btn)
-            return btn
-
-        self.runToolButton = add_action_button(self.actionRun)
-        self.stopToolButton = add_action_button(self.actionStop)
-        self.exportToolButton = add_action_button(self.actionExport)
-
-        # Center widget: alternates between empty spacer and progress bar.
-        self.toolbarCenter = QStackedWidget(tb)
+        # Center widget: alternates between empty spacer and progress bar
+        self.toolbarCenter = QStackedWidget(self)
         self.toolbarCenter.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self.toolbarCenter.setMinimumWidth(1)
 
@@ -2269,11 +1333,9 @@ class MainWindow(QMainWindow):
         self.toolbarCenter.addWidget(progress_page)  # index 1: progress bar
         self.toolbarCenter.setCurrentIndex(0)
 
-        layout.addWidget(self.toolbarCenter, 1)
-        self.infoToolButton = add_action_button(self.actionInfo)
-        self.exitToolButton = add_action_button(self.actionExit)
-
-        self.windowRootLayout.insertWidget(1, tb)
+        tb.addWidget(self.toolbarCenter)
+        tb.addAction(self.actionInfo)
+        tb.addAction(self.actionExit)
 
     def _set_toolbar_progress_visible(self, visible: bool):
         """Show or hide the progress bar in the toolbar."""
@@ -2313,7 +1375,7 @@ class MainWindow(QMainWindow):
                 color: {t['log_text']};
                 selection-background-color: {sel_bg};
                 selection-color: {sel_fg};
-                border: 1px solid {t['ctx_border']};
+                border: 1px solid {t['panel_border']};
                 border-radius: 10px;
                 padding: 10px 12px;
             }}
@@ -2322,21 +1384,14 @@ class MainWindow(QMainWindow):
     def _setup_ui(self):
         """Initialize all widgets of the main window."""
         self.setWindowTitle(f"{APP_STUDIO} {APP_TITLE}")
-        self.setWindowIcon(app_window_icon())
+        self.setWindowIcon(QIcon(":/kleon"))
 
         self.opsBox.setTitle(T["grp_actions"])
         self.logBox.setTitle(T["grp_log"])
 
-        self.dnfOpt.setText(T["cb_dnf"])
-        self.flatpakOpt.setText(T["cb_flatpak"])
         self.kernelOpt.setText(T["cb_kernel"])
-        self.systemdOpt.setText(T["cb_systemd"])
         self.logsOpt.setText(T["cb_logs"])
-        self.coredumpOpt.setText(T["cb_coredump"])
-        self.packagekitOpt.setText(T["cb_packagekit"])
         self.tmpOpt.setText(T["cb_tmp"])
-        self.abrtOpt.setText(T["cb_abrt"])
-        self.bashOpt.setText(T["cb_bash"])
         self.cacheOpt.setText(T["cb_cache"])
         self.browserOpt.setText(T["cb_browser"])
         self.passwordOpt.setText(T["cb_passwords"])
@@ -2354,11 +1409,15 @@ class MainWindow(QMainWindow):
         ]:
             cb.toggled.connect(self._update_run_enabled)
 
+        sb = QStatusBar(self)
+        sb.setSizeGripEnabled(True)
+        self.setStatusBar(sb)
+        self._status_label = QLabel(T["status_ready"])
+        sb.addWidget(self._status_label)
+
+        self._hide_legacy_buttons()
         self._build_toolbar()
-        self._build_status_footer()
         self._apply_app_styles()
-        self._apply_window_shadow()
-        self._apply_panel_shadows()
         self._setup_log_widget()
         self._update_run_enabled()
 
@@ -2368,27 +1427,8 @@ class MainWindow(QMainWindow):
         self.progressBar.setValue(0)
         self._set_toolbar_progress_visible(False)
 
-    def _build_status_footer(self):
-        """Build a CharM-like blue footer instead of a native status bar."""
-        footer = QFrame(self.windowCard)
-        footer.setObjectName("statusFooter")
-        footer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        layout = QHBoxLayout(footer)
-        layout.setContentsMargins(12, 7, 12, 7)
-        layout.setSpacing(8)
-
-        self._status_label = QLabel(T["status_ready"], footer)
-        self._status_label.setObjectName("statusLabel")
-        footer_font = self._status_label.font()
-        footer_font.setPointSize(10)
-        self._status_label.setFont(footer_font)
-
-        layout.addWidget(self._status_label, 1)
-        self.statusFooter = footer
-        self.windowRootLayout.addWidget(footer)
-
     def _set_status(self, message: str):
-        """Update the status footer label."""
+        """Update the status bar text."""
         self._status_label.setText(message)
 
     def _update_run_enabled(self):
@@ -2421,7 +1461,7 @@ class MainWindow(QMainWindow):
         user = self._real_user
         home = self._real_home
         lines = [
-            *log_banner(f"{APP_STUDIO} {APP_TITLE.upper()} v{APP_VERSION}"),
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━  {APP_STUDIO} {APP_TITLE.upper()} v{APP_VERSION}  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━",
             "",
             f"{T['welcome_os']} {os_name}",
             f"{T['welcome_kernel']} {platform.release()}",
@@ -2458,8 +1498,6 @@ class MainWindow(QMainWindow):
         self.actionExport.setEnabled(False)
         self.actionInfo.setEnabled(False)
         self.actionExit.setEnabled(False)
-        if hasattr(self, "title_close_btn"):
-            self.title_close_btn.setEnabled(False)
         self._set_toolbar_progress_visible(True)
 
         for cb in [
@@ -2474,8 +1512,50 @@ class MainWindow(QMainWindow):
         self._set_status(T["status_running"])
 
     def on_info(self):
-        """Show the custom About dialog."""
-        AboutDialog(self).exec()
+        """Show the About dialog."""
+        palette = self.palette()
+        link_color = palette.color(QPalette.ColorRole.Link).name()
+        muted_color = palette.color(QPalette.ColorRole.PlaceholderText).name()
+
+        QMessageBox.about(
+            self,
+            f"{T['ui_about_title']} {APP_TITLE}",
+            f"""
+            <div style="min-width: 520px;">
+
+                <p style="font-size: 1.3em; font-weight: bold; margin: 0 0 2px 0;">
+                    {APP_STUDIO} {APP_TITLE}
+                </p>
+                <p style="font-size: 0.9em; color: {muted_color}; margin: 0 0 12px 0;">
+                    {T['about_version']} {APP_VERSION}
+                </p>
+
+                <hr style="border: none; border-top: 1px solid {muted_color}; margin: 0 0 10px 0;">
+
+                <p style="margin: 0 0 10px 0; line-height: 1.6; font-size: 0.92em;">
+                    {T['about_description']}
+                </p>
+
+                <hr style="border: none; border-top: 1px solid {muted_color}; margin: 0 0 10px 0;">
+
+                <p style="margin: 0 0 6px 0; font-size: 0.88em; color: {muted_color};">
+                    © {APP_YEAR} {APP_STUDIO} · {APP_AUTHOR}
+                </p>
+
+                <p style="margin: 0; font-size: 0.88em;">
+                    <a style="color: {link_color}; text-decoration: none;"
+                       href="{APP_SOURCE}">{T['about_source']}</a>
+                    &nbsp;·&nbsp;
+                    <a style="color: {link_color}; text-decoration: none;"
+                       href="https://github.com/eleora-dev/kleon/blob/main/LICENSE">{T['about_license']}</a>
+                    &nbsp;·&nbsp;
+                    <a style="color: {link_color}; text-decoration: none;"
+                       href="{APP_ISSUES}">{T['about_bugreport']}</a>
+                </p>
+
+            </div>
+            """,
+        )
 
     def on_export(self):
         """Export the log contents to a text file."""
@@ -2559,8 +1639,6 @@ class MainWindow(QMainWindow):
         self.actionExport.setEnabled(True)
         self.actionInfo.setEnabled(True)
         self.actionExit.setEnabled(True)
-        if hasattr(self, "title_close_btn"):
-            self.title_close_btn.setEnabled(True)
         self._set_toolbar_progress_visible(False)
 
         for cb in [
@@ -2595,7 +1673,7 @@ def main():
     app.setApplicationName(APP_TITLE)
     app.setApplicationVersion(APP_VERSION)
     app.setOrganizationName(APP_AUTHOR)
-    app.setWindowIcon(app_window_icon())
+    app.setWindowIcon(QIcon(":/kleon"))
 
     w = MainWindow()
     w.show()

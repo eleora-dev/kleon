@@ -11,7 +11,9 @@ A system maintenance utility for Fedora Linux, optimized for KDE Plasma.
 
 ## Screenshot
 
-![Main window](assets/screenshot.png)
+| Light | Dark |
+|---|---|
+| ![Light mode](assets/screenshot-light.png) | ![Dark mode](assets/screenshot-dark.png) |
 
 ---
 
@@ -29,7 +31,7 @@ A system maintenance utility for Fedora Linux, optimized for KDE Plasma.
 * **Bash history** — clear root and user history
 * **User cache** — clean ~/.cache (preserves KDE essentials) and __pycache__ folders
 * **Recent documents** — remove KDE and GTK recent files
-* **Browser cleanup** — cache, history, sessions and optionally saved passwords for Brave, Chrome and Firefox
+* **Browser cleanup** — remove cache, history and sessions for Brave, Chrome and Firefox; saved passwords are optional
 * **SMART summary** — disk health status at the end of each run
 * **Log export** — save the full session log to a file
 * **Bilingual** — Italian and English, auto-detected from system locale
@@ -38,7 +40,7 @@ A system maintenance utility for Fedora Linux, optimized for KDE Plasma.
 
 ## Important notes
 
-* **Browser cleanup** removes cache, history, sessions, form data and local storage (IndexedDB / service workers). **Cookies are NOT removed**, so you stay logged in. Saved passwords are removed only if the dedicated option is explicitly enabled. The browser must be closed before running cleanup.
+* **Browser cleanup** removes cache, history and sessions. **Cookies are not removed**, so you stay logged in. Saved passwords are removed only if the dedicated option is explicitly enabled. The browser must be closed before running cleanup.
 
 * **User cache** cleanup preserves `ksycoca6` files required for KDE Plasma to function correctly.
 
@@ -52,7 +54,7 @@ A system maintenance utility for Fedora Linux, optimized for KDE Plasma.
 
 * Root operations run via `pkexec` — a polkit authentication prompt is shown before they begin
 * User-level operations (cache, browser data, Bash history, recent documents, ABRT user reports) run without elevated privileges and only affect the current user's home directory
-* All operations run **locally on your machine** — no network requests are made
+* Kleon does not send telemetry, analytics or personal data. Network access may occur only through system package managers such as DNF and Flatpak during update operations
 
 ---
 

@@ -24,6 +24,13 @@ _STRINGS = {
         "sec_kernel": "Obsolete kernels (root)",
         "sec_logs": "Old logs in /var/log (root)",
         "sec_tmp": "Temporary files (root)",
+        "sec_dnf_root": "DNF (root)",
+        "sec_flatpak_root": "Flatpak (root)",
+        "sec_systemd_root": "systemd journal (root)",
+        "sec_coredump_root": "Core dump (root)",
+        "sec_packagekit_root": "PackageKit cache (root)",
+        "sec_abrt_root": "Crash report (root)",
+        "sec_bash_root": "Bash (root)",
         "sec_abrt_user": "Crash report (user)",
         "sec_bash_user": "Bash (user)",
         "sec_cache_user": "Cache (user)",
@@ -39,6 +46,8 @@ _STRINGS = {
         "summary_no_data": "  Data not available",
         "smart_status": "Status :",
         "smart_usage": "Usage  :",
+        "smart_health_error": "ERROR",
+        "smart_health_warning": "WARNING",
         "hl_labels": (
             "User   :", "Home   :", "System :", "Kernel :", "Host   :",
             "Available space     :", "Freed space         :",
@@ -99,6 +108,17 @@ _STRINGS = {
         "ui_sec_system": "System",
         "ui_sec_user": "User",
         "ui_sec_browser": "Browser",
+        "cb_dnf": "DNF",
+        "cb_flatpak": "Flatpak",
+        "cb_systemd": "systemd journal",
+        "cb_coredump": "Core Dump",
+        "cb_packagekit": "PackageKit",
+        "cb_abrt": "Crash Report",
+        "cb_bash": "Bash",
+        "titlebar_subtitle": "Fedora/KDE maintenance",
+        "titlebar_github_tooltip": "Eleòra on GitHub",
+        "window_minimize": "Minimize",
+        "window_close": "Close",
         "btn_run": "Run Maintenance",
         "btn_stop_tip": "Stop  (Esc)",
         "btn_export_tip": "Export log  (Ctrl+S)",
@@ -118,28 +138,19 @@ _STRINGS = {
         "ui_export_err": "Error saving file:\n",
         "ui_export_box_title": "Export Log",
         "about_version": "Version",
+        "about_author": "Author",
+        "about_project": "Project",
+        "about_platform": "Platform",
         "about_license": "License",
-        "about_description": (
-            "System maintenance utility for <b>Fedora Linux</b>, "
-            "optimized for <b>KDE Plasma</b>. Updates DNF and Flatpak packages, "
-            "removes obsolete kernels, and cleans logs, cache, temporary files and browser data."
-        ),
-        "about_source": "Source code",
+        "about_description": "Updates, cleanup, and essential system maintenance.",
+        "about_github": "Eleòra on GitHub",
         "about_bugreport": "Report an issue",
-        "about_items": (
-            "• DNF upgrade and cleanup<br>"
-            "• Flatpak updates and unused package removal<br>"
-            "• Obsolete kernel removal<br>"
-            "• systemd journal size reduction<br>"
-            "• Old log removal in /var/log<br>"
-            "• Core dump removal (systemd-coredump)<br>"
-            "• PackageKit cache cleanup<br>"
-            "• Temporary file cleanup in /tmp and /var/tmp<br>"
-            "• Bash history cleanup<br>"
-            "• User cache cleanup<br>"
-            "• Recent documents removal<br>"
-            "• Browser data cleanup (Brave, Chrome, Firefox)"
-        ),
+        "about_ok": "OK",
+        "about_github_tooltip": "Open the Eleòra GitHub profile",
+        "about_license_tooltip": "MIT license",
+        "about_bugreport_tooltip": "Open the issue tracker",
+        "about_close_tooltip": "Close this window",
+        "about_ok_tooltip": "Close this window",
         "status_ready": "Ready",
         "status_running": "Maintenance in progress…",
         "status_stopped": "Stopped by user",
@@ -162,6 +173,13 @@ _STRINGS = {
         "sec_kernel": "Kernel obsoleti (root)",
         "sec_logs": "Registri obsoleti in /var/log (root)",
         "sec_tmp": "File temporanei (root)",
+        "sec_dnf_root": "DNF (root)",
+        "sec_flatpak_root": "Flatpak (root)",
+        "sec_systemd_root": "Journal systemd (root)",
+        "sec_coredump_root": "Core dump (root)",
+        "sec_packagekit_root": "Cache PackageKit (root)",
+        "sec_abrt_root": "Crash report (root)",
+        "sec_bash_root": "Bash (root)",
         "sec_abrt_user": "Crash report (utente)",
         "sec_bash_user": "Bash (utente)",
         "sec_cache_user": "Cache (utente)",
@@ -177,6 +195,8 @@ _STRINGS = {
         "summary_no_data": "  Dati non disponibili",
         "smart_status": "Stato  :",
         "smart_usage": "Usura  :",
+        "smart_health_error": "ERRORE",
+        "smart_health_warning": "ATTENZIONE",
         "hl_labels": (
             "Utente  :", "Home    :", "Sistema :", "Kernel  :", "Host    :",
             "Spazio disponibile   :", "Spazio liberato      :",
@@ -237,6 +257,17 @@ _STRINGS = {
         "ui_sec_system": "Sistema",
         "ui_sec_user": "Utente",
         "ui_sec_browser": "Browser",
+        "cb_dnf": "DNF",
+        "cb_flatpak": "Flatpak",
+        "cb_systemd": "Journal systemd",
+        "cb_coredump": "Core Dump",
+        "cb_packagekit": "PackageKit",
+        "cb_abrt": "Crash Report",
+        "cb_bash": "Bash",
+        "titlebar_subtitle": "Manutenzione Fedora/KDE",
+        "titlebar_github_tooltip": "Eleòra su GitHub",
+        "window_minimize": "Minimizza",
+        "window_close": "Chiudi",
         "btn_run": "Avvia Manutenzione",
         "btn_stop_tip": "Interrompi  (Esc)",
         "btn_export_tip": "Esporta log  (Ctrl+S)",
@@ -256,28 +287,19 @@ _STRINGS = {
         "ui_export_err": "Errore durante il salvataggio:\n",
         "ui_export_box_title": "Esporta Log",
         "about_version": "Versione",
+        "about_author": "Autore",
+        "about_project": "Progetto",
+        "about_platform": "Piattaforma",
         "about_license": "Licenza",
-        "about_description": (
-            "Utility di manutenzione del sistema per <b>Fedora Linux</b>, "
-            "ottimizzata per <b>KDE Plasma</b>. Aggiorna i pacchetti DNF e Flatpak, "
-            "rimuove kernel obsoleti, pulisce log, cache, file temporanei e dati browser."
-        ),
-        "about_source": "Codice sorgente",
+        "about_description": "Aggiornamenti, pulizia e manutenzione essenziale del sistema.",
+        "about_github": "Eleòra su GitHub",
         "about_bugreport": "Segnala un problema",
-        "about_items": (
-            "• Aggiornamento e pulizia DNF<br>"
-            "• Gestione aggiornamenti e pacchetti inutilizzati Flatpak<br>"
-            "• Rimozione kernel obsoleti<br>"
-            "• Riduzione dimensione log systemd<br>"
-            "• Rimozione vecchi log in /var/log<br>"
-            "• Rimozione core dump (systemd-coredump)<br>"
-            "• Pulizia cache PackageKit<br>"
-            "• Pulizia file temporanei /tmp e /var/tmp<br>"
-            "• Pulizia cronologia Bash<br>"
-            "• Pulizia cache utente<br>"
-            "• Rimozione documenti recenti<br>"
-            "• Pulizia dati browser (Brave, Chrome, Firefox)"
-        ),
+        "about_ok": "OK",
+        "about_github_tooltip": "Apri il profilo GitHub di Eleòra",
+        "about_license_tooltip": "Licenza MIT",
+        "about_bugreport_tooltip": "Apri il tracker delle segnalazioni",
+        "about_close_tooltip": "Chiudi questa finestra",
+        "about_ok_tooltip": "Chiudi questa finestra",
         "status_ready": "Pronto",
         "status_running": "Manutenzione in corso…",
         "status_stopped": "Interrotto dall'utente",

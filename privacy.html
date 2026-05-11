@@ -7,7 +7,7 @@
 
   <style>
     :root {
-      --orange: #ffa726;
+      --orange: #fe9306;
       --text: #1a1a1a;
       --muted: #666;
       --border: #e8e8e8;
@@ -50,7 +50,7 @@
     .logo {
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 18px;
       margin-bottom: 12px;
     }
 
@@ -61,12 +61,15 @@
 
     .brand-product {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      font-size: 30px;
-      font-weight: 700;
+      font-size: 28px;
+      font-weight: 650;
+      line-height: 2;
       color: var(--muted);
-      letter-spacing: 2px;
-      transform: translateY(3px);
-      margin-left: 8px;
+      letter-spacing: 0.2px;
+      margin-left: 0;
+      padding-left: 18px;
+      border-left: 2px solid var(--orange);
+      transform: translateY(5px);
     }
 
     .meta {
@@ -112,6 +115,7 @@
 
     a {
       color: var(--orange);
+      text-decoration: none;
     }
 
     .card {
@@ -271,7 +275,7 @@
       </ul>
     </div>
 
-    <p>No analytics, no tracking, no network requests. The source code is publicly available on <a href="https://github.com/eleora-dev/kleon" target="_blank" rel="noopener noreferrer">GitHub</a>.</p>
+    <p>No data collection, tracking or telemetry. Network access is limited to DNF/Flatpak updates. The source code is publicly available on <a href="https://github.com/eleora-dev/kleon" target="_blank" rel="noopener noreferrer">GitHub</a>.</p>
   </section>
 
   <hr class="divider" />
@@ -355,16 +359,13 @@
       </ul>
     </div>
 
-    <p>Nessuna analisi, nessun tracciamento, nessuna richiesta di rete. Il codice sorgente è pubblicamente disponibile su <a href="https://github.com/eleora-dev/kleon" target="_blank" rel="noopener noreferrer">GitHub</a>.</p>
+    <p>Nessuna raccolta dati, tracciamento o telemetria. La rete è usata solo per gli aggiornamenti DNF/Flatpak. Il codice sorgente è pubblicamente disponibile su <a href="https://github.com/eleora-dev/kleon" target="_blank" rel="noopener noreferrer">GitHub</a>.</p>
   </section>
 
 </main>
 
 <footer>
-  <p>Eleòra Kleon · Gerardo Perilli ·
-    <a href="mailto:gerardo.perilli@gmail.com">email</a> ·
-    <a href="https://github.com/eleora-dev/kleon" target="_blank" rel="noopener noreferrer">GitHub</a>
-  </p>
+  <p>Eleòra Kleon · <a href="https://github.com/eleora-dev" target="_blank" rel="noopener noreferrer">GitHub</a></p>
 </footer>
 
 </body>
