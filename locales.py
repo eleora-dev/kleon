@@ -183,7 +183,7 @@ _STRINGS = {
         "sec_abrt_user": "Crash report (utente)",
         "sec_bash_user": "Bash (utente)",
         "sec_cache_user": "Cache (utente)",
-        "sec_browser_user": "Pulizia Browser (utente)",
+        "sec_browser_user": "Pulizia browser (utente)",
         "sec_recent_user": "Documenti recenti (utente)",
         "summary_title": "Riepilogo",
         "summary_avail": "Spazio disponibile   :",
