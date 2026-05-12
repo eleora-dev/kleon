@@ -1,26 +1,40 @@
 #!/usr/bin/env python3
 """
- *  Eleòra Kleon
- *  System maintenance utility for Fedora Linux/KDE.
- *
- *  https://github.com/eleora-dev/kleon
- *  License: MIT
+Eleòra Kleon
+System maintenance utility for Fedora Linux/KDE.
+
+https://github.com/eleora-dev/kleon
+License: MIT
 """
 
-import os, pwd, shutil, subprocess, threading, shlex, platform, socket, random, signal, selectors, tempfile, re
+from __future__ import annotations
 
-try:
-    import resources
-except ImportError:
-    resources = None
+import os
+import platform
+import pwd
+import random
+import re
+import selectors
+import shlex
+import shutil
+import signal
+import socket
+import subprocess
+import tempfile
+import threading
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, List, Optional, Tuple
+
+try:
+    import resources  # noqa: F401 - Qt resource registration side effect
+except ImportError:
+    pass
 from PySide6.QtCore import (
     QObject, QThread, Signal, Qt, QSize, QUrl, QEvent
 )
 from PySide6.QtGui import (
-    QIcon, QPixmap, QSyntaxHighlighter, QTextCharFormat, QColor,
+    QIcon, QPixmap, QSyntaxHighlighter, QTextCharFormat, QColor, QPainter,
     QPalette, QAction, QKeySequence, QFont, QFontDatabase, QDesktopServices
 )
 from PySide6.QtWidgets import (
@@ -171,7 +185,7 @@ def app_header_icon_pixmap(size: int = 34) -> QPixmap:
     return pixmap
 
 
-def _rgb_lightness_from_config_value(value: str) -> Optional[float]:
+def _rgb_lightness_from_config_value(value: str) -> float | None:
     """Return approximate lightness from KDE RGB config values such as '35,38,41'."""
     try:
         nums = [int(n) for n in re.findall(r"\d+", value)[:3]]
@@ -183,7 +197,7 @@ def _rgb_lightness_from_config_value(value: str) -> Optional[float]:
         return None
 
 
-def kde_uses_dark_palette() -> Optional[bool]:
+def kde_uses_dark_palette() -> bool | None:
     """Detect KDE/Plasma light/dark preference from kdeglobals, when available.
 
     Qt can report a light palette for Python apps even while Plasma is using a
@@ -256,7 +270,7 @@ def kde_uses_dark_palette() -> Optional[bool]:
     return None
 
 
-def app_uses_dark_palette(widget=None) -> bool:
+def app_uses_dark_palette() -> bool:
     """Return True when the active KDE/Qt palette is dark.
 
     KDE config is checked before Qt's palette because Qt may expose a light
@@ -293,7 +307,7 @@ def app_uses_dark_palette(widget=None) -> bool:
         return False
 
 
-def app_theme(widget=None) -> dict[str, str]:
+def app_theme() -> dict[str, str]:
     """Return the shared light/dark visual palette used by the main window and About."""
     t = dict(APP_THEME_DARK if app_uses_dark_palette() else APP_THEME_LIGHT)
     # Keep the log area part of the same card palette. It must not keep a
@@ -307,7 +321,7 @@ def app_theme(widget=None) -> dict[str, str]:
 
 # ── Utility functions ─────────────────────────────────────────────────────────
 
-def real_user_info() -> Tuple[int, str, str]:
+def real_user_info() -> tuple[int, str, str]:
     """
     Return (uid, username, home) of the real user,
     accounting for sudo and pkexec elevation.
@@ -334,7 +348,7 @@ def df_used_bytes_root() -> int:
     return int((st.f_blocks - st.f_bfree) * st.f_frsize)
 
 
-def df_avail_size_root() -> Tuple[int, int]:
+def df_avail_size_root() -> tuple[int, int]:
     """Return (available bytes, total bytes) on the root partition."""
     st = os.statvfs("/")
     avail = st.f_bavail * st.f_frsize
@@ -446,7 +460,7 @@ def run_cmd(args, on_line, cancel_event) -> int:
             pass
 
 
-def run_root_block(commands: List[List[str]], on_line, cancel_event) -> int:
+def run_root_block(commands: list[list[str]], on_line, cancel_event) -> int:
     """
     Run a list of commands with root privileges.
     If already root, executes them directly; otherwise batches them into
@@ -534,7 +548,6 @@ class Worker(QObject):
     def _log(self, s: str):
         self.log.emit(s)
 
-
     def run(self):
         """Thread entry point: execute all enabled operations."""
         self.running.emit(True)
@@ -590,15 +603,15 @@ class Worker(QObject):
                 if "DNF" not in op_name:
                     self._cancel.wait(random.uniform(0.2, 0.9))
 
-        root_cmds: List[List[str]] = []
-        user_steps: List[Tuple[str, Callable[[], None]]] = []
+        root_cmds: list[list[str]] = []
+        user_steps: list[tuple[str, Callable[[], None]]] = []
 
         def add_root_title(title: str):
             root_cmds.append(["echo", ""])
             root_cmds.append(["echo", f"━━━━━ {title}"])
             root_cmds.append(["sleep", "0.35"])
 
-        def add_root_op(enabled: bool, title: str, cmds: List[List[str]]):
+        def add_root_op(enabled: bool, title: str, cmds: list[list[str]]):
             nonlocal total_ops
             if not enabled:
                 return
@@ -723,10 +736,10 @@ class Worker(QObject):
             T["sec_logs"],
             [
                 ["bash", "-c",
-                 f'n=$(find /var/log -type f '
+                 f'find /var/log -type f '
                  r'\( -name "*.gz" -o -name "*.xz" -o -name "*.zst" '
                  r'-o -name "*.[0-9]" -o -name "*.[0-9][0-9]" \) '
-                 f'-print -delete 2>/dev/null | wc -l) || n=0; '
+                 f'-delete 2>/dev/null || true; '
                  f'echo "{T["logs_ok"]}"',
                 ]
             ],
@@ -739,7 +752,6 @@ class Worker(QObject):
                 ["bash", "-c",
                  f'dir=/var/lib/systemd/coredump; '
                  f'if [ -d "$dir" ]; then '
-                 f'  n=$(find "$dir" -mindepth 1 2>/dev/null | wc -l) || n=0; '
                  f'  find "$dir" -mindepth 1 -depth -delete 2>/dev/null || true; '
                  f'  echo "{T["coredump_ok"]}"; '
                  f'else echo "{T["coredump_no_dir"]}"; fi',
@@ -765,9 +777,7 @@ class Worker(QObject):
             T["sec_tmp"],
             [
                 ["bash", "-c",
-                 f'n=$(find /tmp -mindepth 1 -maxdepth 1 -atime +1 2>/dev/null | wc -l) || n=0; '
                  f'find /tmp -mindepth 1 -maxdepth 1 -atime +1 -exec rm -rf {{}} + 2>/dev/null || true; '
-                 f'm=$(find /var/tmp -mindepth 1 -maxdepth 1 -atime +7 2>/dev/null | wc -l) || m=0; '
                  f'find /var/tmp -mindepth 1 -maxdepth 1 -atime +7 -exec rm -rf {{}} + 2>/dev/null || true; '
                  f'echo "{T["tmp_ok"]}"',
                 ]
@@ -779,12 +789,9 @@ class Worker(QObject):
             T["sec_abrt_root"],
             [
                 ["bash", "-c",
-                 f'n=0; '
                  f'for dir in /var/spool/abrt /var/tmp/abrt; do '
                  f'  [ -d "$dir" ] || continue; '
-                 f'  c=$(find "$dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l); '
                  f'  find "$dir" -mindepth 1 -maxdepth 1 -type d -exec rm -rf {{}} + 2>/dev/null || true; '
-                 f'  n=$((n+c)); '
                  f'done; '
                  f'echo "{T["abrt_root_ok"]}"',
                 ]
@@ -804,8 +811,8 @@ class Worker(QObject):
         )
 
         # SMART data collection, only when root operations are already requested.
-        smart_dir: Optional[Path] = None
-        smart_file: Optional[Path] = None
+        smart_dir: Path | None = None
+        smart_file: Path | None = None
         if root_cmds:
             smart_dir = Path(tempfile.mkdtemp(prefix="kleon_smart_"))
             smart_file = smart_dir / "smart.txt"
@@ -1097,7 +1104,6 @@ class Worker(QObject):
                     p.unlink(missing_ok=True)
             self._log(f"✔ {name}: {T['browser_sessions']}")
 
-            # Passwords are only removed if the user explicitly requested it
             if delete_passwords:
                 for n in ["Login Data", "Login Data-journal"]:
                     p = profile / n
@@ -1241,10 +1247,10 @@ class AboutTitleBar(QFrame):
 class AboutDialog(QDialog):
     """Custom, app-styled About window; no native QMessageBox."""
 
-    def __init__(self, parent: Optional["MainWindow"] = None):
+    def __init__(self, parent: "MainWindow" | None = None):
         super().__init__(parent)
         self.parent_window = parent
-        self.t = app_theme(parent)
+        self.t = app_theme()
         self.setWindowTitle(f"{T['ui_about_title']} {APP_TITLE}")
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint)
         self.setWindowModality(Qt.WindowModality.ApplicationModal)
@@ -1277,7 +1283,7 @@ class AboutDialog(QDialog):
         shadow = QGraphicsDropShadowEffect(card)
         shadow.setBlurRadius(30)
         shadow.setOffset(0, 8)
-        shadow.setColor(QColor(0, 0, 0, 150 if app_uses_dark_palette(self.parent_window) else 46))
+        shadow.setColor(QColor(0, 0, 0, 150 if app_uses_dark_palette() else 46))
         card.setGraphicsEffect(shadow)
 
         card_layout = QVBoxLayout(card)
@@ -1625,7 +1631,6 @@ class LogHighlighter(QSyntaxHighlighter):
 
 class MainWindow(QMainWindow):
 
-
     def __init__(self):
         super().__init__()
         self.setWindowFlags(
@@ -1645,8 +1650,8 @@ class MainWindow(QMainWindow):
         self.highlighter = LogHighlighter(self.logText.document())
         self._show_welcome()
 
-        self._worker_thread: Optional[QThread] = None
-        self._worker: Optional[Worker] = None
+        self._worker_thread: QThread | None = None
+        self._worker: Worker | None = None
 
         self.actionRun.triggered.connect(self.on_start)
         self.actionStop.triggered.connect(self.on_stop)
@@ -1679,13 +1684,8 @@ class MainWindow(QMainWindow):
 
     # ── UI setup helpers ──────────────────────────────────────────────────────
 
-    def _theme(self) -> dict[str, str]:
-        """Return the shared CharM-aligned palette adapted to the active KDE/Qt theme."""
-        return app_theme(self)
-
     def _build_title_bar(self):
-        """Build a CharM-like custom title bar for the frameless window."""
-        t = self._theme()
+        """Build the custom title bar for the frameless window."""
         title_bar = WindowTitleBar(self)
         title_bar.setFixedHeight(58)
 
@@ -1769,14 +1769,13 @@ class MainWindow(QMainWindow):
         return btn
 
     def _refresh_window_buttons(self):
-        """Keep the fixed-size CharM-like shell consistent."""
-        # The main window is fixed-size and cannot be maximized. Keep the
-        # transparent gutter always visible so the card shadow remains visible.
+        """Keep the fixed-size shell geometry consistent."""
+        # Keep the transparent gutter visible so the card shadow is not clipped.
         if hasattr(self, "outerLayout"):
             self.outerLayout.setContentsMargins(10, 10, 10, 10)
 
     def _apply_window_shadow(self):
-        """Apply CharM's soft outer shadow to the whole window card."""
+        """Apply a soft outer shadow to the whole window card."""
         if not hasattr(self, "windowCard"):
             return
         is_dark = app_uses_dark_palette()
@@ -1787,7 +1786,7 @@ class MainWindow(QMainWindow):
         self.windowCard.setGraphicsEffect(shadow)
 
     def _apply_panel_shadows(self):
-        """Apply the soft card shadow used by CharM to the two main panels."""
+        """Apply a soft card shadow to the two main panels."""
         is_dark = app_uses_dark_palette()
         for widget in (self.opsBox, self.logBox):
             shadow = QGraphicsDropShadowEffect(widget)
@@ -1797,14 +1796,12 @@ class MainWindow(QMainWindow):
             widget.setGraphicsEffect(shadow)
 
     def _apply_app_styles(self):
-        """Apply a CharM-like visual layer while keeping a KDE-native main window."""
+        """Apply the app stylesheet for the active KDE/Qt theme."""
         if self._applying_theme:
             return
         self._applying_theme = True
-        t = self._theme()
-        # Make the root widgets follow the detected app theme even when Qt's
-        # native palette disagrees with KDE. The stylesheet below then covers
-        # every child consistently.
+        t = app_theme()
+        # Force the detected KDE theme on root widgets before styling children.
         pal = self.palette()
         pal.setColor(QPalette.ColorRole.Window, QColor(t["ctx_bg"]))
         pal.setColor(QPalette.ColorRole.Base, QColor(t["ctx_bg"]))
@@ -1951,6 +1948,28 @@ class MainWindow(QMainWindow):
                 background: transparent;
             }}
 
+            QCheckBox::indicator {{
+                width: 12px;
+                height: 12px;
+                border: 2px solid {t['btn_color']};
+                border-radius: 4px;
+                background: {t['ctx_bg']};
+            }}
+
+            QCheckBox::indicator:hover {{
+                border-color: {t['accent']};
+            }}
+
+            QCheckBox::indicator:checked {{
+                background: {t['accent']};
+                border-color: {t['accent']};
+            }}
+
+            QCheckBox::indicator:disabled {{
+                border-color: {t['disabled']};
+                background: transparent;
+            }}
+
             QCheckBox:hover {{
                 background: {t['btn_hover_bg']};
                 color: {t['accent']};
@@ -2049,14 +2068,10 @@ class MainWindow(QMainWindow):
 
     def _build_main_layout(self):
         """
-        Build the main window programmatically, without Qt Designer/Creator.
-        The widget names intentionally match the old .ui-generated attributes
-        so the application logic can stay almost unchanged.
+        Build the main window programmatically.
         """
         self.setObjectName("Kleon")
-        # Fixed-size window: not resizable by edges and no maximize control.
-        # The dimensions keep every checkbox visible while preserving the
-        # floating-card look and shadow gutter.
+        # Fixed-size window: no edge resize and no maximize control.
         self.setFixedSize(1040, 760)
 
         self.centralwidget = QWidget(self)
@@ -2064,8 +2079,7 @@ class MainWindow(QMainWindow):
         self.centralwidget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
         self.setCentralWidget(self.centralwidget)
 
-        # CharM-like outer shell: the real UI is a rounded card floating on a
-        # transparent gutter, so the drop shadow can be visible.
+        # Rounded card on a transparent gutter so the shadow remains visible.
         self.outerLayout = QVBoxLayout(self.centralwidget)
         self.outerLayout.setContentsMargins(10, 10, 10, 10)
         self.outerLayout.setSpacing(0)
@@ -2180,8 +2194,7 @@ class MainWindow(QMainWindow):
         self.logText.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         log_layout.addWidget(self.logText)
 
-        # Created here for compatibility with the old .ui version; the toolbar
-        # re-parents it into its center area during _build_toolbar().
+        # Created before the toolbar, then re-parented into its center area.
         self.progressBar = QProgressBar(self.logBox)
         self.progressBar.setObjectName("progressBar")
         self.progressBar.hide()
@@ -2190,8 +2203,30 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self.logBox, 1)
         self.windowRootLayout.addWidget(self.contentWidget, 1)
 
+    def _toolbar_icon(self, name: str) -> QIcon:
+        """Return the theme icon, tinting it like toolbar text in dark mode."""
+        icon = QIcon.fromTheme(name)
+        if not app_uses_dark_palette():
+            return icon
+
+        pixmap = icon.pixmap(QSize(20, 20))
+        if pixmap.isNull():
+            return icon
+
+        tinted = QPixmap(pixmap.size())
+        tinted.setDevicePixelRatio(pixmap.devicePixelRatio())
+        tinted.fill(Qt.GlobalColor.transparent)
+
+        painter = QPainter(tinted)
+        painter.drawPixmap(0, 0, pixmap)
+        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceIn)
+        painter.fillRect(tinted.rect(), QColor(app_theme()["btn_color"]))
+        painter.end()
+
+        return QIcon(tinted)
+
     def _build_toolbar(self):
-        """Build a CharM-like in-window action bar under the custom title bar."""
+        """Build the in-window action bar under the custom title bar."""
         tb = QFrame(self.windowCard)
         tb.setObjectName("mainToolBar")
         tb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -2201,35 +2236,35 @@ class MainWindow(QMainWindow):
         self.mainToolBar = tb
 
         self.actionRun = QAction(
-            QIcon.fromTheme("media-playback-start"),
+            self._toolbar_icon("media-playback-start"),
             T["btn_run"].strip(), self
         )
         self.actionRun.setShortcut(QKeySequence("F5"))
         self.actionRun.setToolTip(f"{T['btn_run'].strip()}  (F5)")
 
         self.actionStop = QAction(
-            QIcon.fromTheme("process-stop"),
+            self._toolbar_icon("process-stop"),
             T["btn_stop_tip"], self
         )
         self.actionStop.setShortcut(QKeySequence("Escape"))
         self.actionStop.setToolTip(T["btn_stop_tip"])
 
         self.actionExport = QAction(
-            QIcon.fromTheme("document-save"),
+            self._toolbar_icon("document-save"),
             T["btn_export_tip"], self
         )
         self.actionExport.setShortcut(QKeySequence.StandardKey.Save)
         self.actionExport.setToolTip(T["btn_export_tip"])
 
         self.actionInfo = QAction(
-            QIcon.fromTheme("help-about"),
+            self._toolbar_icon("help-about"),
             T["btn_info_tip"], self
         )
         self.actionInfo.setShortcut(QKeySequence("F1"))
         self.actionInfo.setToolTip(T["btn_info_tip"])
 
         self.actionExit = QAction(
-            QIcon.fromTheme("application-exit"),
+            self._toolbar_icon("application-exit"),
             T["btn_exit_tip"], self
         )
         self.actionExit.setShortcut(QKeySequence.StandardKey.Quit)
@@ -2303,10 +2338,9 @@ class MainWindow(QMainWindow):
 
     def _setup_log_widget(self):
         """
-        Style the log area using the active KDE palette plus the Kleon/CharM accent.
-        Works correctly with both light and dark themes.
+        Style the log area with the active KDE palette and Kleon accent.
         """
-        t = self._theme()
+        t = app_theme()
         palette = self.palette()
         sel_bg = palette.color(QPalette.ColorRole.Highlight).name()
         sel_fg = palette.color(QPalette.ColorRole.HighlightedText).name()
@@ -2324,6 +2358,17 @@ class MainWindow(QMainWindow):
                 padding: 10px 12px;
             }}
         """)
+
+    def _runnable_checkboxes(self) -> tuple[QCheckBox, ...]:
+        return (
+            self.dnfOpt, self.flatpakOpt, self.cacheOpt, self.kernelOpt,
+            self.systemdOpt, self.bashOpt, self.browserOpt, self.recentOpt,
+            self.abrtOpt, self.logsOpt, self.coredumpOpt, self.packagekitOpt,
+            self.tmpOpt,
+        )
+
+    def _all_option_checkboxes(self) -> tuple[QCheckBox, ...]:
+        return (*self._runnable_checkboxes(), self.passwordOpt)
 
     def _setup_ui(self):
         """Initialize all widgets of the main window."""
@@ -2348,16 +2393,10 @@ class MainWindow(QMainWindow):
         self.passwordOpt.setText(T["cb_passwords"])
         self.recentOpt.setText(T["cb_recent"])
 
-        # passwordOpt is enabled only when browserOpt is checked
         self.passwordOpt.setEnabled(self.browserOpt.isChecked())
         self.browserOpt.toggled.connect(self.passwordOpt.setEnabled)
 
-        for cb in [
-            self.dnfOpt, self.flatpakOpt, self.cacheOpt, self.kernelOpt,
-            self.systemdOpt, self.bashOpt, self.browserOpt, self.recentOpt,
-            self.abrtOpt, self.logsOpt, self.coredumpOpt, self.packagekitOpt,
-            self.tmpOpt,
-        ]:
+        for cb in self._runnable_checkboxes():
             cb.toggled.connect(self._update_run_enabled)
 
         self._build_toolbar()
@@ -2375,7 +2414,7 @@ class MainWindow(QMainWindow):
         self._set_toolbar_progress_visible(False)
 
     def _build_status_footer(self):
-        """Build a CharM-like blue footer instead of a native status bar."""
+        """Build the custom status footer."""
         footer = QFrame(self.windowCard)
         footer.setObjectName("statusFooter")
         footer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
@@ -2398,21 +2437,7 @@ class MainWindow(QMainWindow):
         self._status_label.setText(message)
 
     def _update_run_enabled(self):
-        self.actionRun.setEnabled(
-            self.dnfOpt.isChecked() or
-            self.flatpakOpt.isChecked() or
-            self.cacheOpt.isChecked() or
-            self.kernelOpt.isChecked() or
-            self.systemdOpt.isChecked() or
-            self.bashOpt.isChecked() or
-            self.browserOpt.isChecked() or
-            self.recentOpt.isChecked() or
-            self.abrtOpt.isChecked() or
-            self.logsOpt.isChecked() or
-            self.coredumpOpt.isChecked() or
-            self.packagekitOpt.isChecked() or
-            self.tmpOpt.isChecked()
-        )
+        self.actionRun.setEnabled(any(cb.isChecked() for cb in self._runnable_checkboxes()))
 
     # ── Welcome screen ────────────────────────────────────────────────────────
 
@@ -2468,12 +2493,7 @@ class MainWindow(QMainWindow):
             self.title_close_btn.setEnabled(False)
         self._set_toolbar_progress_visible(True)
 
-        for cb in [
-            self.dnfOpt, self.flatpakOpt, self.cacheOpt, self.kernelOpt,
-            self.systemdOpt, self.bashOpt, self.browserOpt, self.recentOpt,
-            self.abrtOpt, self.logsOpt, self.coredumpOpt, self.packagekitOpt,
-            self.tmpOpt, self.passwordOpt,
-        ]:
+        for cb in self._all_option_checkboxes():
             cb.setEnabled(False)
 
         self.setWindowTitle(f"{APP_STUDIO} {APP_TITLE} — {T['status_running']}")
@@ -2533,7 +2553,6 @@ class MainWindow(QMainWindow):
         self._worker_thread = QThread()
         self._worker.moveToThread(self._worker_thread)
 
-        # Connect worker signals to UI slots (QueuedConnection for thread safety)
         self._worker_thread.started.connect(self._worker.run)
         self._worker.log.connect(self.append_log, Qt.ConnectionType.QueuedConnection)
         self._worker.progress.connect(self.on_progress_changed, Qt.ConnectionType.QueuedConnection)
@@ -2569,12 +2588,7 @@ class MainWindow(QMainWindow):
             self.title_close_btn.setEnabled(True)
         self._set_toolbar_progress_visible(False)
 
-        for cb in [
-            self.dnfOpt, self.flatpakOpt, self.cacheOpt, self.kernelOpt,
-            self.systemdOpt, self.bashOpt, self.browserOpt, self.recentOpt,
-            self.abrtOpt, self.logsOpt, self.coredumpOpt, self.packagekitOpt,
-            self.tmpOpt, self.passwordOpt,
-        ]:
+        for cb in self._all_option_checkboxes():
             cb.setEnabled(True)
 
         self.passwordOpt.setEnabled(self.browserOpt.isChecked())
