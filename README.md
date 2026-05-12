@@ -34,6 +34,7 @@ A system maintenance utility for Fedora Linux, optimized for KDE Plasma.
 * **Browser cleanup** — remove cache, history and sessions for Brave, Chrome and Firefox; saved passwords are optional
 * **SMART summary** — disk health status at the end of each run
 * **Log export** — save the full session log to a file
+* **Saved preferences** — remember the last selected cleanup options in `~/.config/eleora-kleon/settings.json`
 * **Bilingual** — Italian and English, auto-detected from system locale
 
 ---
@@ -48,12 +49,15 @@ A system maintenance utility for Fedora Linux, optimized for KDE Plasma.
 
 * **SMART summary** requires `smartmontools` to be installed. Without it, the summary section will show no data.
 
+* **Saved preferences** are stored locally in `~/.config/eleora-kleon/settings.json` and only contain the selected cleanup options.
+
 ---
 
 ## How it works
 
 * Root operations run via `pkexec` — a polkit authentication prompt is shown before they begin
 * User-level operations (cache, browser data, Bash history, recent documents, ABRT user reports) run without elevated privileges and only affect the current user's home directory
+* Kleon saves the last selected cleanup options locally in `~/.config/eleora-kleon/settings.json`
 * Kleon does not send telemetry, analytics or personal data. Network access may occur only through system package managers such as DNF and Flatpak during update operations
 
 ---
@@ -90,7 +94,8 @@ python kleon.py
 
 ## Privacy
 
-This application does not collect, store, transmit or share any personal data.
+This application does not collect, transmit or share any personal data.
+It stores only local app preferences, such as the last selected cleanup options, in `~/.config/eleora-kleon/settings.json`.
 All operations are performed locally on your machine.
 
 Full privacy policy: [eleora-dev.github.io/kleon/privacy.html](https://eleora-dev.github.io/kleon/privacy.html)

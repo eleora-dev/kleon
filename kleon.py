@@ -9,6 +9,7 @@ License: MIT
 
 from __future__ import annotations
 
+import json
 import os
 import platform
 import pwd
@@ -74,6 +75,9 @@ APP_FOOTER_BUTTON_BG = "rgba(255, 255, 255, 0.15)"
 APP_FOOTER_BUTTON_HOVER = "rgba(255, 255, 255, 0.25)"
 LOG_RULE_CHAR = "━"
 LOG_RULE_WIDTH = 72
+CONFIG_DIR_NAME = "eleora-kleon"
+SETTINGS_FILE_NAME = "settings.json"
+SETTINGS_VERSION = 1
 
 
 def log_banner(title: str) -> tuple[str, str]:
@@ -329,6 +333,26 @@ def real_user_info() -> tuple[int, str, str]:
     uid = int(os.environ.get("SUDO_UID") or os.environ.get("PKEXEC_UID") or os.getuid())
     pw = pwd.getpwuid(uid)
     return uid, pw.pw_name, pw.pw_dir
+
+
+def app_settings_path(real_home: str | Path) -> Path:
+    """Return the per-user settings path under ~/.config/eleora-kleon."""
+    return Path(real_home).expanduser() / ".config" / CONFIG_DIR_NAME / SETTINGS_FILE_NAME
+
+
+def write_text_for_user(path: Path, text: str, uid: int) -> None:
+    """Write a text file and keep it owned by the real user when elevated."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_suffix(f"{path.suffix}.tmp")
+    tmp.write_text(text, encoding="utf-8")
+    os.replace(tmp, path)
+
+    try:
+        gid = pwd.getpwuid(uid).pw_gid
+        os.chown(path.parent, uid, gid)
+        os.chown(path, uid, gid)
+    except Exception:
+        pass
 
 
 def fmt_bytes_1dp(num_bytes: int) -> str:
@@ -1644,6 +1668,7 @@ class MainWindow(QMainWindow):
 
         # Real user info computed once at startup
         self._uid, self._real_user, self._real_home = real_user_info()
+        self._settings_path = app_settings_path(self._real_home)
 
         self._build_main_layout()
         self._setup_ui()
@@ -1675,6 +1700,7 @@ class MainWindow(QMainWindow):
     # ── Close event ───────────────────────────────────────────────────────────
 
     def closeEvent(self, event):
+        self._save_option_settings()
         if self._worker is not None:
             self._worker.cancel()
         if self._worker_thread is not None and self._worker_thread.isRunning():
@@ -2359,6 +2385,74 @@ class MainWindow(QMainWindow):
             }}
         """)
 
+    def _option_checkboxes_by_key(self) -> dict[str, QCheckBox]:
+        """Return option checkboxes keyed like the SelectedOps fields."""
+        return {
+            "dnf": self.dnfOpt,
+            "flatpak": self.flatpakOpt,
+            "cache": self.cacheOpt,
+            "kernel": self.kernelOpt,
+            "systemd": self.systemdOpt,
+            "bash": self.bashOpt,
+            "browser": self.browserOpt,
+            "passwords": self.passwordOpt,
+            "recent": self.recentOpt,
+            "logs": self.logsOpt,
+            "coredump": self.coredumpOpt,
+            "packagekit": self.packagekitOpt,
+            "tmp": self.tmpOpt,
+            "abrt": self.abrtOpt,
+        }
+
+    def _current_option_settings(self) -> dict[str, bool]:
+        """Return the current checkbox state as a serializable dict."""
+        return {
+            key: checkbox.isChecked()
+            for key, checkbox in self._option_checkboxes_by_key().items()
+        }
+
+    def _load_option_settings(self) -> None:
+        """Restore checkbox states from the previous run, if available."""
+        try:
+            data = json.loads(self._settings_path.read_text(encoding="utf-8"))
+        except FileNotFoundError:
+            return
+        except Exception:
+            return
+
+        options = data.get("options") if isinstance(data, dict) else None
+        if not isinstance(options, dict):
+            return
+
+        for key, checkbox in self._option_checkboxes_by_key().items():
+            value = options.get(key)
+            if isinstance(value, bool):
+                checkbox.setChecked(value)
+
+        self.passwordOpt.setEnabled(self.browserOpt.isChecked())
+
+    def _save_option_settings(self, *_args) -> None:
+        """Persist checkbox states under ~/.config/eleora-kleon/settings.json."""
+        if not hasattr(self, "_settings_path"):
+            return
+
+        payload = {
+            "version": SETTINGS_VERSION,
+            "options": self._current_option_settings(),
+        }
+
+        try:
+            write_text_for_user(
+                self._settings_path,
+                json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+                self._uid,
+            )
+        except Exception:
+            # Settings persistence is convenient, not critical: never block Kleon
+            # from starting or closing because the config file is unavailable.
+            pass
+
+
     def _runnable_checkboxes(self) -> tuple[QCheckBox, ...]:
         return (
             self.dnfOpt, self.flatpakOpt, self.cacheOpt, self.kernelOpt,
@@ -2396,8 +2490,12 @@ class MainWindow(QMainWindow):
         self.passwordOpt.setEnabled(self.browserOpt.isChecked())
         self.browserOpt.toggled.connect(self.passwordOpt.setEnabled)
 
+        self._load_option_settings()
+
         for cb in self._runnable_checkboxes():
             cb.toggled.connect(self._update_run_enabled)
+        for cb in self._all_option_checkboxes():
+            cb.toggled.connect(self._save_option_settings)
 
         self._build_toolbar()
         self._build_status_footer()
@@ -2544,6 +2642,8 @@ class MainWindow(QMainWindow):
             tmp=self.tmpOpt.isChecked(),
             abrt=self.abrtOpt.isChecked(),
         )
+
+        self._save_option_settings()
 
         self.logText.clear()
         self.progressBar.setValue(0)
