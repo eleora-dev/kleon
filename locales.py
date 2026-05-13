@@ -5,8 +5,6 @@ import locale
 import os
 
 
-# ── Localisation ──────────────────────────────────────────────────────────────
-
 _STRINGS = {
     "en": {
         "welcome_os": "System :",
